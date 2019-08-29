@@ -18,7 +18,7 @@ Use it in connector config file like this:
 ~~~json
 ...
 "transforms": "ReplaceField",
-"transforms.ReplaceField.type": "com.redhat.insights.expandjsonsmt.ReplaceField$Value",
+"transforms.ReplaceField.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
 "transforms.ReplaceField.blacklist": "field_to_replace"
 ...
 ~~~

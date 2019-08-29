@@ -39,6 +39,11 @@
 			<artifactId>connect-transforms</artifactId>
 			<version>${kafka.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20190722</version>
+		</dependency>
     
 		<!-- Test dependencies -->
 		<dependency>
@@ -128,7 +133,7 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>com.redhat.insights.expandjsonsmt.ReplaceField</mainClass>
+							<mainClass>com.redhat.insights.expandjsonsmt.ExpandJSON</mainClass>
 						</manifest>
 					</archive>
 				</configuration>

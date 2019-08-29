@@ -23,103 +23,49 @@ import org.apache.kafka.connect.transforms.util.SimpleConfig;
 import org.apache.kafka.common.cache.Cache;
 import org.apache.kafka.common.cache.LRUCache;
 import org.apache.kafka.common.cache.SynchronizedCache;
-import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.util.SchemaUtil;
+import org.json.JSONObject;
 
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.connect.transforms.util.Requirements.requireMap;
 import static org.apache.kafka.connect.transforms.util.Requirements.requireStruct;
 
-abstract class ReplaceField<R extends ConnectRecord<R>> implements Transformation<R> {
+abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<R> {
 
     public static final String OVERVIEW_DOC = "Filter or rename fields."
             + "<p/>Use the concrete transformation type designed for the record key (<code>" + Key.class.getName() + "</code>) "
             + "or value (<code>" + Value.class.getName() + "</code>).";
 
     interface ConfigName {
-        String BLACKLIST = "blacklist";
-        String WHITELIST = "whitelist";
-        String RENAME = "renames";
+        String SOURCE_FIELD_NAME = "sourceFieldName";
+        String SOURCE_FIELD_SCHEMA = "sourceFieldSchema";
     }
 
     public static final ConfigDef CONFIG_DEF = new ConfigDef()
-            .define(ConfigName.BLACKLIST, ConfigDef.Type.LIST, Collections.emptyList(), ConfigDef.Importance.MEDIUM,
-                    "Fields to exclude. This takes precedence over the whitelist.")
-            .define(ConfigName.WHITELIST, ConfigDef.Type.LIST, Collections.emptyList(), ConfigDef.Importance.MEDIUM,
-                    "Fields to include. If specified, only these fields will be used.")
-            .define(ConfigName.RENAME, ConfigDef.Type.LIST, Collections.emptyList(), new ConfigDef.Validator() {
-                @SuppressWarnings("unchecked")
-                @Override
-                public void ensureValid(String name, Object value) {
-                    parseRenameMappings((List<String>) value);
-                }
+            .define(ConfigName.SOURCE_FIELD_NAME, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+                    "Source field name. This field will be expanded to json object.")
+            .define(ConfigName.SOURCE_FIELD_SCHEMA, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+                    "Source field json schema.");
+    // TODO validate config params
 
-                @Override
-                public String toString() {
-                    return "list of colon-delimited pairs, e.g. <code>foo:bar,abc:xyz</code>";
-                }
-            }, ConfigDef.Importance.MEDIUM, "Field rename mappings.");
+    private static final String PURPOSE = "json field expansion";
 
-    private static final String PURPOSE = "field replacement";
-
-    private List<String> blacklist;
-    private List<String> whitelist;
-    private Map<String, String> renames;
-    private Map<String, String> reverseRenames;
-
+    private String sourceFieldName;
+    private String sourceFieldSchema;
     private Cache<Schema, Schema> schemaUpdateCache;
 
     @Override
     public void configure(Map<String, ?> configs) {
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
-        blacklist = config.getList(ConfigName.BLACKLIST);
-        whitelist = config.getList(ConfigName.WHITELIST);
-        renames = parseRenameMappings(config.getList(ConfigName.RENAME));
-        reverseRenames = invert(renames);
-
+        sourceFieldName = config.getString(ConfigName.SOURCE_FIELD_NAME);
+        sourceFieldSchema = config.getString(ConfigName.SOURCE_FIELD_SCHEMA);
         schemaUpdateCache = new SynchronizedCache<>(new LRUCache<>(16));
-    }
-
-    static Map<String, String> parseRenameMappings(List<String> mappings) {
-        final Map<String, String> m = new HashMap<>();
-        for (String mapping : mappings) {
-            final String[] parts = mapping.split(":");
-            if (parts.length != 2) {
-                throw new ConfigException(ConfigName.RENAME, mappings, "Invalid rename mapping: " + mapping);
-            }
-            m.put(parts[0], parts[1]);
-        }
-        return m;
-    }
-
-    static Map<String, String> invert(Map<String, String> source) {
-        final Map<String, String> m = new HashMap<>();
-        for (Map.Entry<String, String> e : source.entrySet()) {
-            m.put(e.getValue(), e.getKey());
-        }
-        return m;
-    }
-
-    boolean filter(String fieldName) {
-        return !blacklist.contains(fieldName) && (whitelist.isEmpty() || whitelist.contains(fieldName));
-    }
-
-    String renamed(String fieldName) {
-        final String mapping = renames.get(fieldName);
-        return mapping == null ? fieldName : mapping;
-    }
-
-    String reverseRenamed(String fieldName) {
-        final String mapping = reverseRenames.get(fieldName);
-        return mapping == null ? fieldName : mapping;
     }
 
     @Override
@@ -138,11 +84,15 @@ abstract class ReplaceField<R extends ConnectRecord<R>> implements Transformatio
 
         for (Map.Entry<String, Object> e : value.entrySet()) {
             final String fieldName = e.getKey();
-            if (filter(fieldName)) {
-                final Object fieldValue = e.getValue();
-                updatedValue.put(renamed(fieldName), fieldValue);
-            }
+            final Object fieldValue = e.getValue();
+            updatedValue.put(fieldName, fieldValue);
         }
+
+        final Map<String, Object> obj = new HashMap<String, Object>() {{
+            put("a", 1);
+        }};
+
+        updatedValue.put("obj", obj);
 
         return newRecord(record, null, updatedValue);
     }
@@ -158,20 +108,50 @@ abstract class ReplaceField<R extends ConnectRecord<R>> implements Transformatio
 
         final Struct updatedValue = new Struct(updatedSchema);
 
-        for (Field field : updatedSchema.fields()) {
-            final Object fieldValue = value.get(reverseRenamed(field.name()));
+        for (Field field : value.schema().fields()) {
+            Object fieldValue;
+            if (field.name().equals(sourceFieldName)) {
+                String strVal = value.getString(field.name());
+                JSONObject jsonObj = new JSONObject(strVal);
+                fieldValue = jsonObj2Struct(jsonObj, updatedSchema.field(sourceFieldName).schema());
+            } else {
+                fieldValue = value.get(field.name());
+            }
             updatedValue.put(field.name(), fieldValue);
         }
-
         return newRecord(record, updatedSchema, updatedValue);
+    }
+
+    private Struct jsonObj2Struct(JSONObject jsonObj, Schema structSchema) {
+        final Struct obj = new Struct(structSchema);
+        for (Field field : structSchema.fields()) {
+            Object val;
+            if (!jsonObj.has(field.name())) {
+                continue;
+            }
+
+            if (field.schema().equals(Schema.OPTIONAL_INT32_SCHEMA)) {
+                val = jsonObj.getInt(field.name());
+            } else if (field.schema().equals(Schema.OPTIONAL_STRING_SCHEMA)) {
+                val = jsonObj.getString(field.name());
+            } else {
+                val = jsonObj2Struct(jsonObj.getJSONObject(field.name()), field.schema());
+            }
+            obj.put(field.name(), val);
+        }
+        return obj;
     }
 
     private Schema makeUpdatedSchema(Schema schema) {
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
         for (Field field : schema.fields()) {
-            if (filter(field.name())) {
-                builder.field(renamed(field.name()), field.schema());
+            Schema fieldSchema;
+            if (field.name().equals(sourceFieldName)) {
+                fieldSchema = SchemaLoader.loadSchema(sourceFieldSchema);
+            } else {
+                fieldSchema = field.schema();
             }
+            builder.field(field.name(), fieldSchema);
         }
         return builder.build();
     }
@@ -192,7 +172,7 @@ abstract class ReplaceField<R extends ConnectRecord<R>> implements Transformatio
 
     protected abstract R newRecord(R record, Schema updatedSchema, Object updatedValue);
 
-    public static class Key<R extends ConnectRecord<R>> extends ReplaceField<R> {
+    public static class Key<R extends ConnectRecord<R>> extends ExpandJSON<R> {
 
         @Override
         protected Schema operatingSchema(R record) {
@@ -211,7 +191,7 @@ abstract class ReplaceField<R extends ConnectRecord<R>> implements Transformatio
 
     }
 
-    public static class Value<R extends ConnectRecord<R>> extends ReplaceField<R> {
+    public static class Value<R extends ConnectRecord<R>> extends ExpandJSON<R> {
 
         @Override
         protected Schema operatingSchema(R record) {
