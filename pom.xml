@@ -40,10 +40,11 @@
 			<version>${kafka.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.json</groupId>
-			<artifactId>json</artifactId>
-			<version>20190722</version>
+			<groupId>org.mongodb</groupId>
+			<artifactId>bson</artifactId>
+			<version>3.11.0</version>
 		</dependency>
+
     
 		<!-- Test dependencies -->
 		<dependency>

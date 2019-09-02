@@ -20,139 +20,106 @@ import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.util.SimpleConfig;
-import org.apache.kafka.common.cache.Cache;
-import org.apache.kafka.common.cache.LRUCache;
-import org.apache.kafka.common.cache.SynchronizedCache;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.util.SchemaUtil;
-import org.json.JSONObject;
 
-import java.util.HashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Map;
 
-import static org.apache.kafka.connect.transforms.util.Requirements.requireMap;
 import static org.apache.kafka.connect.transforms.util.Requirements.requireStruct;
 
 abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<R> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExpandJSON.class);
 
     public static final String OVERVIEW_DOC = "Filter or rename fields."
             + "<p/>Use the concrete transformation type designed for the record key (<code>" + Key.class.getName() + "</code>) "
             + "or value (<code>" + Value.class.getName() + "</code>).";
 
     interface ConfigName {
-        String SOURCE_FIELD_NAME = "sourceFieldName";
-        String SOURCE_FIELD_SCHEMA = "sourceFieldSchema";
+        String SOURCE_FIELD = "sourceField";
+        String JSON_TEMPLATE = "jsonTemplate";
+        String OUTPUT_FIELD = "outputField";
     }
 
     public static final ConfigDef CONFIG_DEF = new ConfigDef()
-            .define(ConfigName.SOURCE_FIELD_NAME, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+            .define(ConfigName.SOURCE_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
                     "Source field name. This field will be expanded to json object.")
-            .define(ConfigName.SOURCE_FIELD_SCHEMA, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
-                    "Source field json schema.");
-    // TODO validate config params
+            .define(ConfigName.JSON_TEMPLATE, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+                    "Source field json template.")
+            .define(ConfigName.OUTPUT_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+                            "Field to put expanded json object into.");
 
     private static final String PURPOSE = "json field expansion";
 
-    private String sourceFieldName;
-    private String sourceFieldSchema;
-    private Cache<Schema, Schema> schemaUpdateCache;
+    private String sourceField;
+    private String jsonTemplate;
+    private String outputField;
 
     @Override
     public void configure(Map<String, ?> configs) {
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
-        sourceFieldName = config.getString(ConfigName.SOURCE_FIELD_NAME);
-        sourceFieldSchema = config.getString(ConfigName.SOURCE_FIELD_SCHEMA);
-        schemaUpdateCache = new SynchronizedCache<>(new LRUCache<>(16));
+        sourceField = config.getString(ConfigName.SOURCE_FIELD);
+        jsonTemplate = config.getString(ConfigName.JSON_TEMPLATE);
+        outputField = config.getString(ConfigName.OUTPUT_FIELD);
+        if (outputField.equals("")) {
+            outputField = sourceField;
+        }
     }
 
     @Override
     public R apply(R record) {
         if (operatingSchema(record) == null) {
-            return applySchemaless(record);
+            LOGGER.info("Schemaless records not supported");
+            return null;
         } else {
             return applyWithSchema(record);
         }
     }
 
-    private R applySchemaless(R record) {
-        final Map<String, Object> value = requireMap(operatingValue(record), PURPOSE);
-
-        final Map<String, Object> updatedValue = new HashMap<>(value.size());
-
-        for (Map.Entry<String, Object> e : value.entrySet()) {
-            final String fieldName = e.getKey();
-            final Object fieldValue = e.getValue();
-            updatedValue.put(fieldName, fieldValue);
-        }
-
-        final Map<String, Object> obj = new HashMap<String, Object>() {{
-            put("a", 1);
-        }};
-
-        updatedValue.put("obj", obj);
-
-        return newRecord(record, null, updatedValue);
-    }
-
     private R applyWithSchema(R record) {
         final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
-        Schema updatedSchema = schemaUpdateCache.get(value.schema());
-        if (updatedSchema == null) {
-            updatedSchema = makeUpdatedSchema(value.schema());
-            schemaUpdateCache.put(value.schema(), updatedSchema);
-        }
+        final Schema updatedSchema = makeUpdatedSchema(value);
 
         final Struct updatedValue = new Struct(updatedSchema);
 
         for (Field field : value.schema().fields()) {
-            Object fieldValue;
-            if (field.name().equals(sourceFieldName)) {
-                String strVal = value.getString(field.name());
-                JSONObject jsonObj = new JSONObject(strVal);
-                fieldValue = jsonObj2Struct(jsonObj, updatedSchema.field(sourceFieldName).schema());
-            } else {
-                fieldValue = value.get(field.name());
+            if (field.name().equals(sourceField)) {
+                final String strVal = value.getString(field.name());
+                final Object fieldValue = DataConverter.jsonStr2Struct(strVal, updatedSchema.field(outputField).schema());
+                updatedValue.put(outputField, fieldValue);
+                if (sourceField.equals(outputField)) {
+                    continue;
+                }
             }
+
+            final Object fieldValue = value.get(field.name());
             updatedValue.put(field.name(), fieldValue);
         }
         return newRecord(record, updatedSchema, updatedValue);
     }
 
-    private Struct jsonObj2Struct(JSONObject jsonObj, Schema structSchema) {
-        final Struct obj = new Struct(structSchema);
-        for (Field field : structSchema.fields()) {
-            Object val;
-            if (!jsonObj.has(field.name())) {
-                continue;
-            }
-
-            if (field.schema().equals(Schema.OPTIONAL_INT32_SCHEMA)) {
-                val = jsonObj.getInt(field.name());
-            } else if (field.schema().equals(Schema.OPTIONAL_STRING_SCHEMA)) {
-                val = jsonObj.getString(field.name());
-            } else {
-                val = jsonObj2Struct(jsonObj.getJSONObject(field.name()), field.schema());
-            }
-            obj.put(field.name(), val);
-        }
-        return obj;
-    }
-
-    private Schema makeUpdatedSchema(Schema schema) {
+    private Schema makeUpdatedSchema(Struct value) {
+        final Schema schema = value.schema();
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
         for (Field field : schema.fields()) {
-            Schema fieldSchema;
-            if (field.name().equals(sourceFieldName)) {
-                fieldSchema = SchemaLoader.loadSchema(sourceFieldSchema);
-            } else {
-                fieldSchema = field.schema();
+            final Schema fieldSchema;
+            if (field.name().equals(sourceField)) {
+                SchemaParser.addJsonValueSchema(outputField, jsonTemplate, builder);
+                if (sourceField.equals(outputField)) {
+                    continue;
+                }
             }
+            fieldSchema = field.schema();
             builder.field(field.name(), fieldSchema);
         }
+
         return builder.build();
     }
 
@@ -162,9 +129,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
     }
 
     @Override
-    public void close() {
-        schemaUpdateCache = null;
-    }
+    public void close() { }
 
     protected abstract Schema operatingSchema(R record);
 
