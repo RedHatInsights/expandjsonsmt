@@ -51,7 +51,7 @@ public class ExpandJSONTest {
     }
 
     @Test
-    public void withSchema() {
+    public void basicCase() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "address");
         props.put("jsonTemplate", "{\"city\":\"\",\"code\":0}");
@@ -59,33 +59,23 @@ public class ExpandJSONTest {
         xform.configure(props);
 
         final Schema schema = SchemaBuilder.struct()
-                .field("name", Schema.STRING_SCHEMA)
-                .field("age", Schema.INT32_SCHEMA)
                 .field("address", Schema.STRING_SCHEMA)
                 .build();
 
         final Struct value = new Struct(schema);
-        value.put("name", "Josef");
-        value.put("age", 42);
         value.put("address","{\"city\":\"Studenec\",\"code\":123}");
 
         final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
         final SinkRecord transformedRecord = xform.apply(record);
 
         final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(3, updatedValue.schema().fields().size());
-        assertEquals(new Integer(42), updatedValue.getInt32("age"));
-        assertEquals("Josef", updatedValue.getString("name"));
+        assertEquals(1, updatedValue.schema().fields().size());
         assertEquals("Studenec", updatedValue.getStruct("address").getString("city"));
         assertEquals(new Integer(123), updatedValue.getStruct("address").getInt32("code"));
     }
 
     @Test
-    public void withSchemaMissingField() {
-        /**
-         * Ensure missing values will be replaced as empty
-         */
-
+    public void missingField() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "address");
         props.put("jsonTemplate", "{\"city\":\"\",\"code\":0}");
@@ -93,57 +83,22 @@ public class ExpandJSONTest {
         xform.configure(props);
 
         final Schema schema = SchemaBuilder.struct()
-                .field("name", Schema.STRING_SCHEMA)
-                .field("age", Schema.INT32_SCHEMA)
                 .field("address", Schema.STRING_SCHEMA)
                 .build();
 
         final Struct value = new Struct(schema);
-        value.put("name", "Josef");
-        value.put("age", 42);
         value.put("address","{}");
 
         final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
         final SinkRecord transformedRecord = xform.apply(record);
 
         final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(3, updatedValue.schema().fields().size());
-        assertEquals(new Integer(42), updatedValue.getInt32("age"));
-        assertEquals("Josef", updatedValue.getString("name"));
+        assertEquals(1, updatedValue.schema().fields().size());
         assertEquals("Struct{}", updatedValue.getStruct("address").toString());
     }
 
     @Test
-    public void withSchemaComplexWithoutSubDoc() {
-        final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "location");
-        props.put("jsonTemplate", "{\"country\":\"\",\"address\":{\"city\":\"\",\"code\":0}}");
-
-        xform.configure(props);
-
-        final Schema schema = SchemaBuilder.struct()
-                .field("name", Schema.STRING_SCHEMA)
-                .field("age", Schema.INT32_SCHEMA)
-                .field("location", Schema.STRING_SCHEMA)
-                .build();
-
-        final Struct value = new Struct(schema);
-        value.put("name", "Josef");
-        value.put("age", 42);
-        value.put("location", "{}");
-
-        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
-        final SinkRecord transformedRecord = xform.apply(record);
-
-        final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(3, updatedValue.schema().fields().size());
-        assertEquals(new Integer(42), updatedValue.getInt32("age"));
-        assertEquals("Josef", updatedValue.getString("name"));
-        assertNull(updatedValue.getStruct("location").getStruct("address"));
-    }
-
-    @Test
-    public void withSchemaComplex() {
+    public void complex() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "location");
         props.put("jsonTemplate", "{\"country\":\"\",\"address\":{\"city\":\"\",\"code\":0}}");
@@ -177,66 +132,7 @@ public class ExpandJSONTest {
     }
 
     @Test
-    public void withSchemaArray() {
-        final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "location");
-        props.put("jsonTemplate", "{\"country\":\"\"}");
-
-        xform.configure(props);
-
-        final Schema schema = SchemaBuilder.struct()
-                .field("name", Schema.STRING_SCHEMA)
-                .field("age", Schema.INT32_SCHEMA)
-                .field("location", Schema.STRING_SCHEMA)
-                .build();
-
-        final Struct value = new Struct(schema);
-        value.put("name", "Josef");
-        value.put("age", 42);
-        value.put("location", "{\"country\":\"Czech Republic\",\"numbers\":[2,4,6,8]}");
-
-        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
-        final SinkRecord transformedRecord = xform.apply(record);
-
-        final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(3, updatedValue.schema().fields().size());
-        assertEquals(new Integer(42), updatedValue.getInt32("age"));
-        assertEquals("Josef", updatedValue.getString("name"));
-        // array parsing not supported
-        assertEquals(1, updatedValue.getStruct("location").schema().fields().size());
-        assertEquals("Czech Republic", updatedValue.getStruct("location").getString("country"));
-    }
-
-    @Test
-    public void withSchemaComplexMultiRecord() {
-        final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "location");
-        props.put("jsonTemplate", "{\"country\":\"\",\"address\":{\"city\":\"\",\"code\":0}}");
-
-        xform.configure(props);
-
-        final Schema schema = SchemaBuilder.struct()
-                .field("name", Schema.STRING_SCHEMA)
-                .field("age", Schema.INT32_SCHEMA)
-                .field("location", Schema.STRING_SCHEMA)
-                .build();
-
-        final Struct value1 = new Struct(schema);
-        value1.put("name", "Josef");
-        value1.put("age", 42);
-        value1.put("location","{\"address\":{\"code\": 555}, \"a\":1}");
-
-        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value1, 0);
-        final SinkRecord transformedRecord = xform.apply(record);
-
-        final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(3, updatedValue.schema().fields().size());
-        assertEquals(new Integer(42), updatedValue.getInt32("age"));
-        assertEquals("Josef", updatedValue.getString("name"));
-    }
-
-    @Test
-    public void withSchemaToOutputField() {
+    public void outputField() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "address");
         props.put("jsonTemplate", "{\"city\":\"\",\"code\":0}");
