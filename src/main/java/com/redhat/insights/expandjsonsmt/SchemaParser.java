@@ -9,12 +9,13 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 class SchemaParser {
 
     static void addJsonValueSchema(String field, String jsonString, SchemaBuilder builder) {
-        final BsonDocument doc = BsonDocument.parse(jsonString);
+        final BsonDocument rawDoc = BsonDocument.parse(jsonString);
+        final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
         final SchemaBuilder fieldSchemaBuilder = SchemaBuilder.struct().name(builder.name() + "." + field).optional();
         for(Entry<String, BsonValue> entry : doc.entrySet()) {
             addFieldSchema(entry, fieldSchemaBuilder);
         }
-        Schema fieldSchema = fieldSchemaBuilder.build();
+        final Schema fieldSchema = fieldSchemaBuilder.build();
         builder.field(field, fieldSchema);
     }
 

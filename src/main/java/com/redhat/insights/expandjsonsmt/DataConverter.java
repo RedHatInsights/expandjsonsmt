@@ -10,7 +10,8 @@ import org.bson.BsonValue;
 class DataConverter {
 
     static Struct jsonStr2Struct(String jsonStr, Schema schema) {
-        final BsonDocument doc = BsonDocument.parse(jsonStr);
+        final BsonDocument rawDoc = BsonDocument.parse(jsonStr);
+        final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
         final Struct struct = new Struct(schema);
         for(Field field : schema.fields()) {
             if (doc.containsKey(field.name())) {
