@@ -2,6 +2,7 @@ package com.redhat.insights.expandjsonsmt;
 
 import java.util.Map.Entry;
 
+import org.apache.kafka.connect.errors.ConnectException;
 import org.bson.*;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -25,45 +26,77 @@ class SchemaParser {
 
     private static void addFieldSchema(Entry<String, BsonValue> keyValuesforSchema, SchemaBuilder builder) {
         final String key = keyValuesforSchema.getKey();
-        final BsonType type = keyValuesforSchema.getValue().getBsonType();
+        final BsonValue bsonValue = keyValuesforSchema.getValue();
+        final Schema schema = bsonValue2Schema(key, bsonValue, builder);
+        if (schema != null) {
+            builder.field(key, schema);
+        }
+    }
 
-        switch (type) {
-
+    private static Schema bsonValue2Schema(String key, BsonValue bsonValue, SchemaBuilder builder) {
+        switch (bsonValue.getBsonType()) {
         case NULL:
         case STRING:
         case JAVASCRIPT:
         case OBJECT_ID:
         case DECIMAL128:
-            builder.field(key, Schema.OPTIONAL_STRING_SCHEMA);
-            break;
+            return Schema.OPTIONAL_STRING_SCHEMA;
 
         case DOUBLE:
-            builder.field(key, Schema.OPTIONAL_FLOAT64_SCHEMA);
-            break;
+            return Schema.OPTIONAL_FLOAT64_SCHEMA;
 
         case BINARY:
-            builder.field(key, Schema.OPTIONAL_BYTES_SCHEMA);
-            break;
+            return Schema.OPTIONAL_BYTES_SCHEMA;
 
         case INT32:
         case TIMESTAMP:
-            builder.field(key, Schema.OPTIONAL_INT32_SCHEMA);
-            break;
+            return Schema.OPTIONAL_INT32_SCHEMA;
 
         case INT64:
         case DATE_TIME:
-            builder.field(key, Schema.OPTIONAL_INT64_SCHEMA);
-            break;
+            return Schema.OPTIONAL_INT64_SCHEMA;
 
         case BOOLEAN:
-            builder.field(key, Schema.OPTIONAL_BOOLEAN_SCHEMA);
-            break;
+            return Schema.OPTIONAL_BOOLEAN_SCHEMA;
 
         case DOCUMENT:
-            addBsonDocumentFieldSchema(key, keyValuesforSchema.getValue().asDocument(), builder);
-            break;
+            return bsonDocument2Schema(key, bsonValue.asDocument(), builder);
+
+        case ARRAY:
+            return bsonArray2Schema(key, bsonValue.asArray(), builder);
+
         default:
-            break;
+            return null;
         }
+    }
+
+    private static Schema bsonDocument2Schema(String key, BsonDocument doc, SchemaBuilder builder) {
+        final SchemaBuilder fieldSchemaBuilder = SchemaBuilder.struct().name(builder.name() + "." + key).optional();
+        for(Entry<String, BsonValue> entry : doc.entrySet()) {
+            addFieldSchema(entry, fieldSchemaBuilder);
+        }
+        final Schema fieldSchema = fieldSchemaBuilder.build();
+        return fieldSchema;
+    }
+
+    private static Schema bsonArray2Schema(String key, BsonArray bsonArr, SchemaBuilder builder) {
+        if (bsonArr.isEmpty()){
+            throw new ConnectException(String.format("Array '%s' type not specified", key));
+        }
+
+        BsonType valueType = bsonArr.get(0).getBsonType();
+        for (BsonValue element: bsonArr.asArray()) {
+            if (element.getBsonType() != valueType) {
+                throw new ConnectException("Field " + key + " of schema " + builder.name() + " is not a homogenous array.");
+            }
+        }
+
+        Schema memberSchema = bsonValue2Schema(key + "." + "member", bsonArr.get(0), builder);
+        if (memberSchema == null) {
+            throw new ConnectException(String.format("Array '%s' has unrecognized member schema.", key));
+        }
+
+        Schema arrSchema = SchemaBuilder.array(memberSchema).name(builder.name() + "." + key).optional().build();
+        return arrSchema;
     }
 }

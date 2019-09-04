@@ -37,4 +37,37 @@ public class SchemaParserTest {
                 .schema().field("name").schema().field("last").schema());
         assertEquals(Schema.OPTIONAL_INT32_SCHEMA, schema.field("person").schema().field("age").schema());
     }
+
+    @Test
+    public void withArrayOfStrings() {
+        String jsonStr = "{\"arr\":[\"\"]}";
+        SchemaBuilder builder = SchemaBuilder.struct();
+        SchemaParser.addJsonValueSchema("json", jsonStr, builder);
+        Schema schema = builder.build();
+        assertEquals(1, schema.fields().size());
+        assertEquals(Schema.OPTIONAL_STRING_SCHEMA, schema.field("json").schema().field("arr").schema()
+                .valueSchema());
+    }
+
+    @Test
+    public void withArrayOfIntegers() {
+        String jsonStr = "{\"arr\":[0]}";
+        SchemaBuilder builder = SchemaBuilder.struct();
+        SchemaParser.addJsonValueSchema("json", jsonStr, builder);
+        Schema schema = builder.build();
+        assertEquals(1, schema.fields().size());
+        assertEquals(Schema.OPTIONAL_INT32_SCHEMA, schema.field("json").schema().field("arr").schema()
+                .valueSchema());
+    }
+
+    @Test
+    public void withArrayOfObjects() {
+        String jsonStr = "{\"arr\":[{\"a\":0}]}";
+        SchemaBuilder builder = SchemaBuilder.struct();
+        SchemaParser.addJsonValueSchema("json", jsonStr, builder);
+        Schema schema = builder.build();
+        assertEquals(1, schema.fields().size());
+        assertEquals(Schema.OPTIONAL_INT32_SCHEMA, schema.field("json").schema().field("arr").schema()
+                .valueSchema().field("a").schema());
+    }
 }
