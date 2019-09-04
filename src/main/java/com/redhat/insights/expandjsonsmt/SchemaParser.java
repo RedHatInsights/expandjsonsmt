@@ -11,6 +11,10 @@ class SchemaParser {
     static void addJsonValueSchema(String field, String jsonString, SchemaBuilder builder) {
         final BsonDocument rawDoc = BsonDocument.parse(jsonString);
         final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
+        addBsonDocumentFieldSchema(field, doc, builder);
+    }
+
+    private static void addBsonDocumentFieldSchema(String field, BsonDocument doc, SchemaBuilder builder) {
         final SchemaBuilder fieldSchemaBuilder = SchemaBuilder.struct().name(builder.name() + "." + field).optional();
         for(Entry<String, BsonValue> entry : doc.entrySet()) {
             addFieldSchema(entry, fieldSchemaBuilder);
@@ -56,13 +60,7 @@ class SchemaParser {
             break;
 
         case DOCUMENT:
-            final SchemaBuilder builderDoc = SchemaBuilder.struct().name(builder.name() + "." + key).optional();
-            final BsonDocument docs = keyValuesforSchema.getValue().asDocument();
-
-            for (Entry<String, BsonValue> doc : docs.entrySet()) {
-                addFieldSchema(doc, builderDoc);
-            }
-            builder.field(key, builderDoc.build());
+            addBsonDocumentFieldSchema(key, keyValuesforSchema.getValue().asDocument(), builder);
             break;
         default:
             break;

@@ -12,6 +12,11 @@ class DataConverter {
     static Struct jsonStr2Struct(String jsonStr, Schema schema) {
         final BsonDocument rawDoc = BsonDocument.parse(jsonStr);
         final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
+        final Struct struct = bsonDocument2Struct(doc, schema);
+        return struct;
+    }
+
+    private static Struct bsonDocument2Struct(BsonDocument doc, Schema schema) {
         final Struct struct = new Struct(schema);
         for(Field field : schema.fields()) {
             if (doc.containsKey(field.name())) {
@@ -25,11 +30,6 @@ class DataConverter {
         final Object colValue;
 
         switch (value.getBsonType()) {
-
-        case NULL:
-            colValue = null;
-            break;
-
         case STRING:
             colValue = value.asString().getValue();
             break;
@@ -75,16 +75,7 @@ class DataConverter {
             break;
 
         case DOCUMENT:
-            final Struct documentStruct = new Struct(schema);
-            final BsonDocument docs = value.asDocument();
-
-            for (Field subField : schema.fields()) {
-                if (docs.containsKey(subField.name())) {
-                    convertFieldValue(subField.name(), docs.get(subField.name()), documentStruct, subField.schema());
-                }
-            }
-
-            colValue = documentStruct;
+            colValue = bsonDocument2Struct(value.asDocument(), schema);
             break;
         default:
             colValue = null;
