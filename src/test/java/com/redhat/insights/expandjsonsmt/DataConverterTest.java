@@ -41,4 +41,59 @@ public class DataConverterTest {
         assertEquals(new Integer(123), struct.getStruct("address").getInt32("code"));
     }
 
+    @Test
+    public void arrayOfStrings() {
+        Schema schema = SchemaBuilder.struct()
+                .field("arr", SchemaBuilder.array(Schema.OPTIONAL_STRING_SCHEMA))
+                .name("schema").build();
+        String jsonStr = "{\"arr\":[\"a\",\"b\"]}";
+
+        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        assertEquals(1, struct.schema().fields().size());
+        assertEquals(2, struct.getArray("arr").size());
+        assertEquals("a", struct.getArray("arr").get(0));
+        assertEquals("b", struct.getArray("arr").get(1));
+    }
+
+    @Test
+    public void arrayOfInts() {
+        Schema schema = SchemaBuilder.struct()
+                .field("arr", SchemaBuilder.array(Schema.OPTIONAL_INT32_SCHEMA))
+                .name("schema").build();
+        String jsonStr = "{\"arr\":[11, 22]}";
+
+        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        assertEquals(1, struct.schema().fields().size());
+        assertEquals(2, struct.getArray("arr").size());
+        assertEquals(11, struct.getArray("arr").get(0));
+        assertEquals(22, struct.getArray("arr").get(1));
+    }
+
+    @Test
+    public void arrayOfFloats() {
+        Schema schema = SchemaBuilder.struct()
+                .field("arr", SchemaBuilder.array(Schema.OPTIONAL_FLOAT64_SCHEMA))
+                .name("schema").build();
+        String jsonStr = "{\"arr\":[1.1, 2.2]}";
+
+        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        assertEquals(1, struct.schema().fields().size());
+        assertEquals(2, struct.getArray("arr").size());
+        assertEquals(1.1, struct.getArray("arr").get(0));
+        assertEquals(2.2, struct.getArray("arr").get(1));
+    }
+
+    @Test
+    public void arrayOfObjects() {
+        Schema schema = SchemaBuilder.struct()
+                .field("arr", SchemaBuilder.array(SchemaBuilder.struct().field("a", Schema.OPTIONAL_INT32_SCHEMA)))
+                .name("schema").build();
+        String jsonStr = "{\"arr\":[{\"a\":1},{\"a\":2}]}";
+
+        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        assertEquals(1, struct.schema().fields().size());
+        assertEquals(2, struct.getArray("arr").size());
+        assertEquals(new Integer(1), ((Struct) struct.getArray("arr").get(0)).getInt32("a"));
+        assertEquals(new Integer(2), ((Struct) struct.getArray("arr").get(1)).getInt32("a"));
+    }
 }

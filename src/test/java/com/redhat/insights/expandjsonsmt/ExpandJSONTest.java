@@ -189,4 +189,23 @@ public class ExpandJSONTest {
                 .getInt32("num_1"));
     }
 
+    @Test
+    public void arrayCase() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceField", "obj");
+        props.put("jsonTemplate", "{\"ar1\":[0]}");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct().field("obj", Schema.STRING_SCHEMA).build();
+        final Struct value = new Struct(schema);
+        value.put("obj","{\"ar1\":[1,2,3,4]}");
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        assertEquals(1, updatedValue.schema().fields().size());
+        assertEquals(4, updatedValue.getStruct("obj").getArray("ar1").size());
+    }
 }
