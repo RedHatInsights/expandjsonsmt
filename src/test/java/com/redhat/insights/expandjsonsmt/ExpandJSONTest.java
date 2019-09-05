@@ -53,7 +53,7 @@ public class ExpandJSONTest {
     @Test
     public void basicCase() {
         final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "address");
+        props.put("sourceFields", "address");
 
         xform.configure(props);
 
@@ -76,7 +76,7 @@ public class ExpandJSONTest {
     @Test
     public void missingField() {
         final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "address");
+        props.put("sourceFields", "address");
 
         xform.configure(props);
 
@@ -98,7 +98,7 @@ public class ExpandJSONTest {
     @Test
     public void complex() {
         final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "location");
+        props.put("sourceFields", "location");
 
         xform.configure(props);
 
@@ -131,8 +131,8 @@ public class ExpandJSONTest {
     @Test
     public void outputField() {
         final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "address");
-        props.put("outputField", "addressObj");
+        props.put("sourceFields", "address");
+        props.put("outputFields", "addressObj");
 
         xform.configure(props);
 
@@ -160,7 +160,7 @@ public class ExpandJSONTest {
     @Test
     public void dashKeysReplacement() {
         final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "json_obj");
+        props.put("sourceFields", "json_obj");
 
         xform.configure(props);
 
@@ -187,7 +187,7 @@ public class ExpandJSONTest {
     @Test
     public void arrayCase() {
         final Map<String, String> props = new HashMap<>();
-        props.put("sourceField", "obj");
+        props.put("sourceFields", "obj");
 
         xform.configure(props);
 

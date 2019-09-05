@@ -8,8 +8,8 @@ Use it in connector config file like this:
 ...
 "transforms": "expand",
 "transforms.expand.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
-"transforms.expand.sourceField": "metadata",
-"transforms.expand.outputField": "metadata_obj"
+"transforms.expand.sourceFields": "metadata",
+"transforms.expand.outputFields": "metadata_obj"
 ...
 ~~~
 

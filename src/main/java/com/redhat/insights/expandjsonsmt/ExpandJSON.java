@@ -29,6 +29,7 @@ import org.apache.kafka.connect.transforms.util.SchemaUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.connect.transforms.util.Requirements.requireStruct;
@@ -41,28 +42,28 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpandJSON.class);
 
     interface ConfigName {
-        String SOURCE_FIELD = "sourceField";
-        String OUTPUT_FIELD = "outputField";
+        String SOURCE_FIELDS = "sourceFields";
+        String OUTPUT_FIELDS = "outputFields";
     }
 
     private static final ConfigDef CONFIG_DEF = new ConfigDef()
-            .define(ConfigName.SOURCE_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+            .define(ConfigName.SOURCE_FIELDS, ConfigDef.Type.LIST, "", ConfigDef.Importance.MEDIUM,
                     "Source field name. This field will be expanded to json object.")
-            .define(ConfigName.OUTPUT_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
+            .define(ConfigName.OUTPUT_FIELDS, ConfigDef.Type.LIST, "", ConfigDef.Importance.MEDIUM,
                             "Optional param - field to put expanded json object into.");
 
     private static final String PURPOSE = "json field expansion";
 
-    private String sourceField;
-    private String outputField;
+    private List<String> sourceFields;
+    private List<String> outputFields;
 
     @Override
     public void configure(Map<String, ?> configs) {
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
-        sourceField = config.getString(ConfigName.SOURCE_FIELD);
-        outputField = config.getString(ConfigName.OUTPUT_FIELD);
-        if (outputField.equals("")) {
-            outputField = sourceField;
+        sourceFields = config.getList(ConfigName.SOURCE_FIELDS);
+        outputFields = config.getList(ConfigName.OUTPUT_FIELDS);
+        if (outputFields.isEmpty()) {
+            outputFields = sourceFields;
         }
     }
 
@@ -86,11 +87,12 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
             // copy all fields and extract configured text field to JSON object
             final Struct updatedValue = new Struct(updatedSchema);
             for (Field field : value.schema().fields()) {
-                if (field.name().equals(sourceField)) {
+                if (sourceFields.contains(field.name())) {
+                    String outputField = outputFields.get(sourceFields.indexOf(field.name()));
                     final String strVal = value.getString(field.name());
                     final Object fieldValue = DataConverter.jsonStr2Struct(strVal, updatedSchema.field(outputField).schema());
                     updatedValue.put(outputField, fieldValue);
-                    if (sourceField.equals(outputField)) {
+                    if (outputField.equals(field.name())) {
                         // do not copy original value, if the input field equals output one
                         continue;
                     }
@@ -111,10 +113,11 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
         for (Field field : schema.fields()) {
             final Schema fieldSchema;
-            if (field.name().equals(sourceField)) {
-                String jsonStr = value.getString(sourceField);
+            if (sourceFields.contains(field.name())) {
+                String outputField = outputFields.get(sourceFields.indexOf(field.name()));
+                String jsonStr = value.getString(field.name());
                 SchemaParser.addJsonValueSchema(outputField, jsonStr, builder);
-                if (sourceField.equals(outputField)) {
+                if (outputField.equals(field.name())) {
                     // do not copy original schema, if the input field equals output one
                     continue;
                 }

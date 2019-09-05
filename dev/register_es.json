@@ -12,7 +12,7 @@
         "transforms.extract.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
         "transforms.extract.field": "id",
         "transforms.expand.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
-        "transforms.expand.sourceField": "metadata",
-        "transforms.expand.outputField": "metadata_obj"
+        "transforms.expand.sourceFields": "metadata,logs",
+        "transforms.expand.outputFields": "metadata_obj,logs_obj"
     }
 }
