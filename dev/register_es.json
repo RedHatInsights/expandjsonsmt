@@ -13,7 +13,6 @@
         "transforms.extract.field": "id",
         "transforms.expand.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
         "transforms.expand.sourceField": "metadata",
-        "transforms.expand.jsonTemplate": "{\"country\":\"\",\"address\":{\"city\":\"\",\"code\":0}}",
         "transforms.expand.outputField": "metadata_obj"
     }
 }

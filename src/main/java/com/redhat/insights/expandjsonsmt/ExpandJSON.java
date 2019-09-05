@@ -112,7 +112,13 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         for (Field field : schema.fields()) {
             final Schema fieldSchema;
             if (field.name().equals(sourceField)) {
-                SchemaParser.addJsonValueSchema(outputField, jsonTemplate, builder);
+                String currentJsonTemplate;
+                if (jsonTemplate.equals("")) {
+                    currentJsonTemplate = value.getString(sourceField);
+                } else {
+                    currentJsonTemplate = jsonTemplate;
+                }
+                SchemaParser.addJsonValueSchema(outputField, currentJsonTemplate, builder);
                 if (sourceField.equals(outputField)) {
                     // do not copy original schema, if the input field equals output one
                     continue;
