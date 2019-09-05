@@ -79,26 +79,31 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
     private R applyWithSchema(R record) {
         final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
-        // update schema using JSON template from config
-        final Schema updatedSchema = makeUpdatedSchema(value);
+        try {
+            // update schema using JSON template from config
+            final Schema updatedSchema = makeUpdatedSchema(value);
 
-        // copy all fields and extract configured text field to JSON object
-        final Struct updatedValue = new Struct(updatedSchema);
-        for (Field field : value.schema().fields()) {
-            if (field.name().equals(sourceField)) {
-                final String strVal = value.getString(field.name());
-                final Object fieldValue = DataConverter.jsonStr2Struct(strVal, updatedSchema.field(outputField).schema());
-                updatedValue.put(outputField, fieldValue);
-                if (sourceField.equals(outputField)) {
-                    // do not copy original value, if the input field equals output one
-                    continue;
+            // copy all fields and extract configured text field to JSON object
+            final Struct updatedValue = new Struct(updatedSchema);
+            for (Field field : value.schema().fields()) {
+                if (field.name().equals(sourceField)) {
+                    final String strVal = value.getString(field.name());
+                    final Object fieldValue = DataConverter.jsonStr2Struct(strVal, updatedSchema.field(outputField).schema());
+                    updatedValue.put(outputField, fieldValue);
+                    if (sourceField.equals(outputField)) {
+                        // do not copy original value, if the input field equals output one
+                        continue;
+                    }
                 }
-            }
 
-            final Object fieldValue = value.get(field.name());
-            updatedValue.put(field.name(), fieldValue);
+                final Object fieldValue = value.get(field.name());
+                updatedValue.put(field.name(), fieldValue);
+            }
+            return newRecord(record, updatedSchema, updatedValue);
+        } catch (Exception ex) {
+            LOGGER.error(ex.getMessage(), ex);
+            return record;
         }
-        return newRecord(record, updatedSchema, updatedValue);
     }
 
     private Schema makeUpdatedSchema(Struct value) {
