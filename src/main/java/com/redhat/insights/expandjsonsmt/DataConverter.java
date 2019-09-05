@@ -9,9 +9,17 @@ import org.bson.BsonValue;
 
 import java.util.ArrayList;
 
-
+/**
+ * Methods for conversion data to Kafka Connect structures.
+ */
 class DataConverter {
 
+    /**
+     * Convert JSON to Struct value according to inserted schema.
+     * @param jsonStr JSON to convert.
+     * @param schema Schema used for conversion.
+     * @return Result Struct value.
+     */
     static Struct jsonStr2Struct(String jsonStr, Schema schema) {
         final BsonDocument rawDoc = BsonDocument.parse(jsonStr);
         final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
@@ -20,7 +28,7 @@ class DataConverter {
     }
 
     private static void convertFieldValue(String field, BsonValue bsonValue, Struct struct, Schema schema) {
-        Object obj = bsonValue2Object(bsonValue, schema);
+        final Object obj = bsonValue2Object(bsonValue, schema);
         struct.put(field, obj);
     }
 
@@ -81,7 +89,7 @@ class DataConverter {
     }
 
     private static ArrayList<Object> bsonArray2ArrayList(BsonArray bsonArr, Schema schema) {
-        ArrayList<Object> arr = new ArrayList<>(bsonArr.size());
+        final ArrayList<Object> arr = new ArrayList<>(bsonArr.size());
         for(BsonValue bsonValue : bsonArr.getValues()) {
             arr.add(bsonValue2Object(bsonValue, schema.valueSchema()));
         }

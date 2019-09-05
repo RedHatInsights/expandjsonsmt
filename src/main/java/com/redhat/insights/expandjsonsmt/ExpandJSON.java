@@ -33,13 +33,12 @@ import java.util.Map;
 
 import static org.apache.kafka.connect.transforms.util.Requirements.requireStruct;
 
+/**
+ * Main project class implementing JSON string transformation.
+ */
 abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<R> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpandJSON.class);
-
-    public static final String OVERVIEW_DOC = "Filter or rename fields."
-            + "<p/>Use the concrete transformation type designed for the record key (<code>" + Key.class.getName() + "</code>) "
-            + "or value (<code>" + Value.class.getName() + "</code>).";
 
     interface ConfigName {
         String SOURCE_FIELD = "sourceField";
@@ -47,13 +46,13 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         String OUTPUT_FIELD = "outputField";
     }
 
-    public static final ConfigDef CONFIG_DEF = new ConfigDef()
+    private static final ConfigDef CONFIG_DEF = new ConfigDef()
             .define(ConfigName.SOURCE_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
                     "Source field name. This field will be expanded to json object.")
             .define(ConfigName.JSON_TEMPLATE, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
                     "Source field json template.")
             .define(ConfigName.OUTPUT_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
-                            "Field to put expanded json object into.");
+                            "Optional param - field to put expanded json object into.");
 
     private static final String PURPOSE = "json field expansion";
 
@@ -85,16 +84,18 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
     private R applyWithSchema(R record) {
         final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
+        // update schema using JSON template from config
         final Schema updatedSchema = makeUpdatedSchema(value);
 
+        // copy all fields and extract configured text field to JSON object
         final Struct updatedValue = new Struct(updatedSchema);
-
         for (Field field : value.schema().fields()) {
             if (field.name().equals(sourceField)) {
                 final String strVal = value.getString(field.name());
                 final Object fieldValue = DataConverter.jsonStr2Struct(strVal, updatedSchema.field(outputField).schema());
                 updatedValue.put(outputField, fieldValue);
                 if (sourceField.equals(outputField)) {
+                    // do not copy original value, if the input field equals output one
                     continue;
                 }
             }
@@ -113,6 +114,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
             if (field.name().equals(sourceField)) {
                 SchemaParser.addJsonValueSchema(outputField, jsonTemplate, builder);
                 if (sourceField.equals(outputField)) {
+                    // do not copy original schema, if the input field equals output one
                     continue;
                 }
             }
@@ -137,25 +139,6 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
 
     protected abstract R newRecord(R record, Schema updatedSchema, Object updatedValue);
 
-    public static class Key<R extends ConnectRecord<R>> extends ExpandJSON<R> {
-
-        @Override
-        protected Schema operatingSchema(R record) {
-            return record.keySchema();
-        }
-
-        @Override
-        protected Object operatingValue(R record) {
-            return record.key();
-        }
-
-        @Override
-        protected R newRecord(R record, Schema updatedSchema, Object updatedValue) {
-            return record.newRecord(record.topic(), record.kafkaPartition(), updatedSchema, updatedValue, record.valueSchema(), record.value(), record.timestamp());
-        }
-
-    }
-
     public static class Value<R extends ConnectRecord<R>> extends ExpandJSON<R> {
 
         @Override
@@ -172,7 +155,5 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         protected R newRecord(R record, Schema updatedSchema, Object updatedValue) {
             return record.newRecord(record.topic(), record.kafkaPartition(), record.keySchema(), record.key(), updatedSchema, updatedValue, record.timestamp());
         }
-
     }
-
 }

@@ -4,8 +4,16 @@ import org.bson.*;
 
 import java.util.Map;
 
+/**
+ * Different useful functions.
+ */
 class Utils {
 
+    /**
+     * Replace Avro schema unsupported characters (e.g. '-' -> '_') in keys.
+     * @param doc Document to modify fields in.
+     * @return Updated document.
+     */
     static BsonDocument replaceUnsupportedKeyCharacters(BsonDocument doc) {
         BsonDocument outDoc = new BsonDocument();
         for(Map.Entry<String, BsonValue> entry : doc.entrySet()) {

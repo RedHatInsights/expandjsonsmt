@@ -7,8 +7,17 @@ import org.bson.*;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
+/**
+ * Kafka Connect parsing schema methods.
+ */
 class SchemaParser {
 
+    /**
+     * Add Struct schema according to JSON string.
+     * @param field Output field to store JSON object.
+     * @param jsonString JSON string describing Struct schema.
+     * @param builder SchemaBuilder used to build schema.
+     */
     static void addJsonValueSchema(String field, String jsonString, SchemaBuilder builder) {
         final BsonDocument rawDoc = BsonDocument.parse(jsonString);
         final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
