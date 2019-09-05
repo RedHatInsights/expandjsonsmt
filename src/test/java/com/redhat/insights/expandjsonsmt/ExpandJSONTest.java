@@ -54,7 +54,6 @@ public class ExpandJSONTest {
     public void basicCase() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "address");
-        props.put("jsonTemplate", "{\"city\":\"\",\"code\":0}");
 
         xform.configure(props);
 
@@ -78,7 +77,6 @@ public class ExpandJSONTest {
     public void missingField() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "address");
-        props.put("jsonTemplate", "{\"city\":\"\",\"code\":0}");
 
         xform.configure(props);
 
@@ -101,7 +99,6 @@ public class ExpandJSONTest {
     public void complex() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "location");
-        props.put("jsonTemplate", "{\"country\":\"\",\"address\":{\"city\":\"\",\"code\":0}}");
 
         xform.configure(props);
 
@@ -135,7 +132,6 @@ public class ExpandJSONTest {
     public void outputField() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "address");
-        props.put("jsonTemplate", "{\"city\":\"\",\"code\":0}");
         props.put("outputField", "addressObj");
 
         xform.configure(props);
@@ -165,7 +161,6 @@ public class ExpandJSONTest {
     public void dashKeysReplacement() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "json_obj");
-        props.put("jsonTemplate", "{\"text-1\":\"\",\"obj-1-1\":{\"text-2\":\"\",\"num-1\":0}}");
 
         xform.configure(props);
 
@@ -193,7 +188,6 @@ public class ExpandJSONTest {
     public void arrayCase() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceField", "obj");
-        props.put("jsonTemplate", "{\"ar1\":[0]}");
 
         xform.configure(props);
 

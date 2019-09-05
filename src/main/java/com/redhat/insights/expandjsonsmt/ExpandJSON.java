@@ -42,29 +42,24 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
 
     interface ConfigName {
         String SOURCE_FIELD = "sourceField";
-        String JSON_TEMPLATE = "jsonTemplate";
         String OUTPUT_FIELD = "outputField";
     }
 
     private static final ConfigDef CONFIG_DEF = new ConfigDef()
             .define(ConfigName.SOURCE_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
                     "Source field name. This field will be expanded to json object.")
-            .define(ConfigName.JSON_TEMPLATE, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
-                    "Source field json template.")
             .define(ConfigName.OUTPUT_FIELD, ConfigDef.Type.STRING, "", ConfigDef.Importance.MEDIUM,
                             "Optional param - field to put expanded json object into.");
 
     private static final String PURPOSE = "json field expansion";
 
     private String sourceField;
-    private String jsonTemplate;
     private String outputField;
 
     @Override
     public void configure(Map<String, ?> configs) {
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, configs);
         sourceField = config.getString(ConfigName.SOURCE_FIELD);
-        jsonTemplate = config.getString(ConfigName.JSON_TEMPLATE);
         outputField = config.getString(ConfigName.OUTPUT_FIELD);
         if (outputField.equals("")) {
             outputField = sourceField;
@@ -112,13 +107,8 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         for (Field field : schema.fields()) {
             final Schema fieldSchema;
             if (field.name().equals(sourceField)) {
-                String currentJsonTemplate;
-                if (jsonTemplate.equals("")) {
-                    currentJsonTemplate = value.getString(sourceField);
-                } else {
-                    currentJsonTemplate = jsonTemplate;
-                }
-                SchemaParser.addJsonValueSchema(outputField, currentJsonTemplate, builder);
+                String jsonStr = value.getString(sourceField);
+                SchemaParser.addJsonValueSchema(outputField, jsonStr, builder);
                 if (sourceField.equals(outputField)) {
                     // do not copy original schema, if the input field equals output one
                     continue;

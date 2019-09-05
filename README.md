@@ -9,11 +9,9 @@ Use it in connector config file like this:
 "transforms": "expand",
 "transforms.expand.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
 "transforms.expand.sourceField": "metadata",
-"transforms.expand.jsonTemplate": "{\"country\":\"\",\"address\":{\"city\":\"\",\"code\":0}}",
 "transforms.expand.outputField": "metadata_obj"
 ...
 ~~~
-Note: Leave `jsonTemplate` param empty to use generic schema.
 
 ## Install to Kafka Connect
 After build copy file `target/kafka-connect-smt-expandjsonsmt-1.0-SNAPSHOT-jar-with-dependencies.jar`
