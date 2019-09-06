@@ -28,6 +28,7 @@ import org.apache.kafka.connect.transforms.util.SchemaUtil;
 
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
+import org.bson.BsonString;
 import org.bson.BsonValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,20 +119,30 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
     private static HashMap<String, BsonValue> parseJsonFields(Struct value, List<String> sourceFields) {
         final HashMap<String, BsonValue> bsons = new HashMap<>(sourceFields.size());
         for(String field : sourceFields){
-            final BsonValue val;
+            BsonValue val;
             final String jsonString = value.getString(field);
             if (jsonString == null) {
                 val = null;
-            } else if (jsonString.startsWith("{")){
-                val = BsonDocument.parse(jsonString);
-            } else if (jsonString.startsWith("[")){
-                final BsonArray bsonArray = BsonArray.parse(jsonString);
-                final BsonDocument doc = new BsonDocument();
-                doc.put("array", bsonArray);
-                val = doc;
             } else {
-                LOGGER.warn("Unable to parse filed '{}' starting with '{}'", field, jsonString.charAt(0));
-                val = null;
+                try {
+                    if (jsonString.startsWith("{")) {
+                        val = BsonDocument.parse(jsonString);
+                    } else if (jsonString.startsWith("[")) {
+                        final BsonArray bsonArray = BsonArray.parse(jsonString);
+                        final BsonDocument doc = new BsonDocument();
+                        doc.put("array", bsonArray);
+                        val = doc;
+                    } else {
+                        String msg = String.format("Unable to parse filed '%s' starting with '%s'", field, jsonString.charAt(0));
+                        throw new Exception(msg);
+                    }
+                } catch (Exception ex) {
+                    LOGGER.warn(ex.getMessage(), ex);
+                    final BsonDocument doc = new BsonDocument();
+                    doc.put("value", new BsonString(jsonString));
+                    doc.put("error", new BsonString(ex.getMessage()));
+                    val = doc;
+                }
             }
             bsons.put(field, val);
         }

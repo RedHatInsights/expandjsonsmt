@@ -26,8 +26,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 public class ExpandJSONTest {
     private ExpandJSON<SinkRecord> xform = new ExpandJSON.Value<>();
@@ -228,5 +227,32 @@ public class ExpandJSONTest {
         assertEquals(4, updatedValue.getStruct("arr1").getArray("array").size());
         assertEquals(0, updatedValue.getStruct("arr2").getArray("array").size());
         assertNull(updatedValue.getStruct("arr3"));
+    }
+
+    @Test
+    public void malformated() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceFields", "obj1,obj2,arr");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct()
+                .field("obj1", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("obj2", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("arr", Schema.OPTIONAL_STRING_SCHEMA).build();
+        final Struct value = new Struct(schema);
+        value.put("obj1","{\"a\":\"msg\"}");
+        value.put("obj2", "{malf");
+        value.put("arr", "[]");
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        assertEquals(3, updatedValue.schema().fields().size());
+        assertEquals("msg", updatedValue.getStruct("obj1").getString("a"));
+        assertEquals(0, updatedValue.getStruct("arr").getArray("array").size());
+        assertEquals("{malf",updatedValue.getStruct("obj2").getString("value"));
+        assertTrue(updatedValue.getStruct("obj2").getString("error").startsWith("JSON reader"));
     }
 }
