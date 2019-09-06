@@ -158,33 +158,6 @@ public class ExpandJSONTest {
     }
 
     @Test
-    public void dashKeysReplacement() {
-        final Map<String, String> props = new HashMap<>();
-        props.put("sourceFields", "json_obj");
-
-        xform.configure(props);
-
-        final Schema schema = SchemaBuilder.struct()
-                .field("json_obj", Schema.STRING_SCHEMA)
-                .build();
-
-        final Struct value = new Struct(schema);
-        value.put("json_obj","{\"text-1\":\"a-b-c\",\"obj-1-1\":{\"text-2\":\"ab-cd\",\"num-1\":5}}");
-
-        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
-        final SinkRecord transformedRecord = xform.apply(record);
-
-        final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(1, updatedValue.schema().fields().size());
-        assertEquals(2, updatedValue.getStruct("json_obj").schema().fields().size());
-        assertEquals("a-b-c", updatedValue.getStruct("json_obj").getString("text_1"));
-        assertEquals("ab-cd", updatedValue.getStruct("json_obj").getStruct("obj_1_1")
-                .getString("text_2"));
-        assertEquals(new Integer(5), updatedValue.getStruct("json_obj").getStruct("obj_1_1")
-                .getInt32("num_1"));
-    }
-
-    @Test
     public void arrayCase() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceFields", "obj");

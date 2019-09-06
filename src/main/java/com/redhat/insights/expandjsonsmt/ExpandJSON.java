@@ -121,8 +121,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
             final BsonDocument val;
             final String jsonString = value.getString(field);
             if (jsonString != null) {
-                final BsonDocument rawDoc = BsonDocument.parse(jsonString);
-                val = Utils.replaceUnsupportedKeyCharacters(rawDoc);
+                val = BsonDocument.parse(jsonString);
             } else {
                 val = null;
             }
