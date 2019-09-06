@@ -15,18 +15,11 @@ class SchemaParser {
     /**
      * Add Struct schema according to JSON string.
      * @param field Output field to store JSON object.
-     * @param jsonString JSON string describing Struct schema.
+     * @param bson Parsed document or null.
      * @param builder SchemaBuilder used to build schema.
      */
-    static void addJsonValueSchema(String field, String jsonString, SchemaBuilder builder) {
-        final BsonDocument doc;
-        if (jsonString == null) {
-            doc = null;
-        } else {
-            final BsonDocument rawDoc = BsonDocument.parse(jsonString);
-            doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
-        }
-        addBsonDocumentFieldSchema(field, doc, builder);
+    static void addJsonValueSchema(String field, BsonDocument bson, SchemaBuilder builder) {
+        addBsonDocumentFieldSchema(field, bson, builder);
     }
 
     private static void addBsonDocumentFieldSchema(String field, BsonDocument doc, SchemaBuilder builder) {

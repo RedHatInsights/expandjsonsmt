@@ -3,6 +3,7 @@ package com.redhat.insights.expandjsonsmt;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.bson.BsonDocument;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -15,9 +16,9 @@ public class DataConverterTest {
                 .field("city", Schema.STRING_SCHEMA)
                 .field("code", Schema.INT32_SCHEMA)
                 .build();
-        String jsonStr = "{\"city\":\"Studenec\",\"code\":123}";
+        BsonDocument bson = BsonDocument.parse("{\"city\":\"Studenec\",\"code\":123}");
 
-        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        final Struct struct = DataConverter.jsonStr2Struct(bson, schema);
         assertEquals(2, struct.schema().fields().size());
         assertEquals("Studenec", struct.getString("city"));
         assertEquals(new Integer(123), struct.getInt32("code"));
@@ -32,9 +33,9 @@ public class DataConverterTest {
                         .field("code", Schema.INT32_SCHEMA)
                         .name("schema.address").build())
                 .name("schema").build();
-        String jsonStr = "{\"address\":{\"city\":\"Studenec\",\"code\":123},\"name\":\"Josef\"}";
+        BsonDocument bson = BsonDocument.parse("{\"address\":{\"city\":\"Studenec\",\"code\":123},\"name\":\"Josef\"}");
 
-        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        final Struct struct = DataConverter.jsonStr2Struct(bson, schema);
         assertEquals(2, struct.schema().fields().size());
         assertEquals("Josef", struct.getString("name"));
         assertEquals("Studenec", struct.getStruct("address").getString("city"));
@@ -46,9 +47,9 @@ public class DataConverterTest {
         Schema schema = SchemaBuilder.struct()
                 .field("arr", SchemaBuilder.array(Schema.OPTIONAL_STRING_SCHEMA))
                 .name("schema").build();
-        String jsonStr = "{\"arr\":[\"a\",\"b\"]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[\"a\",\"b\"]}");
 
-        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        final Struct struct = DataConverter.jsonStr2Struct(bson, schema);
         assertEquals(1, struct.schema().fields().size());
         assertEquals(2, struct.getArray("arr").size());
         assertEquals("a", struct.getArray("arr").get(0));
@@ -60,9 +61,9 @@ public class DataConverterTest {
         Schema schema = SchemaBuilder.struct()
                 .field("arr", SchemaBuilder.array(Schema.OPTIONAL_INT32_SCHEMA))
                 .name("schema").build();
-        String jsonStr = "{\"arr\":[11, 22]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[11, 22]}");
 
-        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        final Struct struct = DataConverter.jsonStr2Struct(bson, schema);
         assertEquals(1, struct.schema().fields().size());
         assertEquals(2, struct.getArray("arr").size());
         assertEquals(11, struct.getArray("arr").get(0));
@@ -74,9 +75,9 @@ public class DataConverterTest {
         Schema schema = SchemaBuilder.struct()
                 .field("arr", SchemaBuilder.array(Schema.OPTIONAL_FLOAT64_SCHEMA))
                 .name("schema").build();
-        String jsonStr = "{\"arr\":[1.1, 2.2]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[1.1, 2.2]}");
 
-        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        final Struct struct = DataConverter.jsonStr2Struct(bson, schema);
         assertEquals(1, struct.schema().fields().size());
         assertEquals(2, struct.getArray("arr").size());
         assertEquals(1.1, struct.getArray("arr").get(0));
@@ -88,9 +89,9 @@ public class DataConverterTest {
         Schema schema = SchemaBuilder.struct()
                 .field("arr", SchemaBuilder.array(SchemaBuilder.struct().field("a", Schema.OPTIONAL_INT32_SCHEMA)))
                 .name("schema").build();
-        String jsonStr = "{\"arr\":[{\"a\":1},{\"a\":2}]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[{\"a\":1},{\"a\":2}]}");
 
-        final Struct struct = DataConverter.jsonStr2Struct(jsonStr, schema);
+        final Struct struct = DataConverter.jsonStr2Struct(bson, schema);
         assertEquals(1, struct.schema().fields().size());
         assertEquals(2, struct.getArray("arr").size());
         assertEquals(new Integer(1), ((Struct) struct.getArray("arr").get(0)).getInt32("a"));

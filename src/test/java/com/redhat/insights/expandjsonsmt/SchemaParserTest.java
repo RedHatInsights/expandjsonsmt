@@ -1,6 +1,7 @@
 package com.redhat.insights.expandjsonsmt;
 
 import org.apache.kafka.connect.data.SchemaBuilder;
+import org.bson.BsonDocument;
 import org.junit.Test;
 
 import org.apache.kafka.connect.data.Schema;
@@ -11,9 +12,9 @@ public class SchemaParserTest {
 
     @Test
     public void simple() {
-        String jsonStr = "{\"name\":\"Josef\",\"age\":31}";
+        BsonDocument bson = BsonDocument.parse("{\"name\":\"Josef\",\"age\":31}");
         SchemaBuilder builder = SchemaBuilder.struct();
-        SchemaParser.addJsonValueSchema("person", jsonStr, builder);
+        SchemaParser.addJsonValueSchema("person", bson, builder);
         Schema schema = builder.build();
         assertEquals(1, schema.fields().size());
         assertEquals(2, schema.field("person").schema().fields().size());
@@ -23,10 +24,9 @@ public class SchemaParserTest {
 
     @Test
     public void complex() {
-        String jsonStr = "{\"name\":{\"first\":\"Josef\",\"last\":\"Hak\"},\"age\":31}";
-
+        BsonDocument bson = BsonDocument.parse("{\"name\":{\"first\":\"Josef\",\"last\":\"Hak\"},\"age\":31}");
         SchemaBuilder builder = SchemaBuilder.struct();
-        SchemaParser.addJsonValueSchema("person", jsonStr, builder);
+        SchemaParser.addJsonValueSchema("person", bson, builder);
         Schema schema = builder.build();
         assertEquals(1, schema.fields().size());
         assertEquals(2, schema.field("person").schema().fields().size());
@@ -40,9 +40,9 @@ public class SchemaParserTest {
 
     @Test
     public void withArrayOfStrings() {
-        String jsonStr = "{\"arr\":[\"\"]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[\"\"]}");
         SchemaBuilder builder = SchemaBuilder.struct();
-        SchemaParser.addJsonValueSchema("json", jsonStr, builder);
+        SchemaParser.addJsonValueSchema("json", bson, builder);
         Schema schema = builder.build();
         assertEquals(1, schema.fields().size());
         assertEquals(Schema.OPTIONAL_STRING_SCHEMA, schema.field("json").schema().field("arr").schema()
@@ -51,9 +51,9 @@ public class SchemaParserTest {
 
     @Test
     public void withArrayOfIntegers() {
-        String jsonStr = "{\"arr\":[0]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[0]}");
         SchemaBuilder builder = SchemaBuilder.struct();
-        SchemaParser.addJsonValueSchema("json", jsonStr, builder);
+        SchemaParser.addJsonValueSchema("json", bson, builder);
         Schema schema = builder.build();
         assertEquals(1, schema.fields().size());
         assertEquals(Schema.OPTIONAL_INT32_SCHEMA, schema.field("json").schema().field("arr").schema()
@@ -62,9 +62,9 @@ public class SchemaParserTest {
 
     @Test
     public void withArrayOfObjects() {
-        String jsonStr = "{\"arr\":[{\"a\":0}]}";
+        BsonDocument bson = BsonDocument.parse("{\"arr\":[{\"a\":0}]}");
         SchemaBuilder builder = SchemaBuilder.struct();
-        SchemaParser.addJsonValueSchema("json", jsonStr, builder);
+        SchemaParser.addJsonValueSchema("json", bson, builder);
         Schema schema = builder.build();
         assertEquals(1, schema.fields().size());
         assertEquals(Schema.OPTIONAL_INT32_SCHEMA, schema.field("json").schema().field("arr").schema()

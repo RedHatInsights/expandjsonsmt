@@ -16,17 +16,15 @@ class DataConverter {
 
     /**
      * Convert JSON to Struct value according to inserted schema.
-     * @param jsonStr JSON to convert.
+     * @param bson Parsed bson object.
      * @param schema Schema used for conversion.
      * @return Result Struct value.
      */
-    static Struct jsonStr2Struct(String jsonStr, Schema schema) {
-        if (jsonStr == null) {
+    static Struct jsonStr2Struct(BsonDocument bson, Schema schema) {
+        if (bson == null) {
             return null;
         }
-        final BsonDocument rawDoc = BsonDocument.parse(jsonStr);
-        final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
-        final Struct struct = bsonDocument2Struct(doc, schema);
+        final Struct struct = bsonDocument2Struct(bson, schema);
         return struct;
     }
 
