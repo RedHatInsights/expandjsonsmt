@@ -85,7 +85,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
         try {
-            final HashMap<String, BsonDocument> jsonParsedFields = parseJsonFields(value, sourceFields);
+            final HashMap<String, BsonValue> jsonParsedFields = parseJsonFields(value, sourceFields);
 
             // update schema using JSON template from config
             final Schema updatedSchema = makeUpdatedSchema(value, jsonParsedFields);
@@ -95,7 +95,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
             for (Field field : value.schema().fields()) {
                 if (sourceFields.contains(field.name())) {
                     String outputField = outputFields.get(sourceFields.indexOf(field.name()));
-                    final BsonDocument parsedValue = jsonParsedFields.get(field.name());
+                    final BsonValue parsedValue = jsonParsedFields.get(field.name());
                     final Object fieldValue = DataConverter.jsonStr2Struct(parsedValue,
                             updatedSchema.field(outputField).schema());
                     updatedValue.put(outputField, fieldValue);
@@ -115,14 +115,22 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         }
     }
 
-    private static HashMap<String, BsonDocument> parseJsonFields(Struct value, List<String> sourceFields) {
-        final HashMap<String, BsonDocument> bsons = new HashMap<>(sourceFields.size());
+    private static HashMap<String, BsonValue> parseJsonFields(Struct value, List<String> sourceFields) {
+        final HashMap<String, BsonValue> bsons = new HashMap<>(sourceFields.size());
         for(String field : sourceFields){
-            final BsonDocument val;
+            final BsonValue val;
             final String jsonString = value.getString(field);
-            if (jsonString != null) {
+            if (jsonString == null) {
+                val = null;
+            } else if (jsonString.startsWith("{")){
                 val = BsonDocument.parse(jsonString);
+            } else if (jsonString.startsWith("[")){
+                final BsonArray bsonArray = BsonArray.parse(jsonString);
+                final BsonDocument doc = new BsonDocument();
+                doc.put("array", bsonArray);
+                val = doc;
             } else {
+                LOGGER.warn("Unable to parse filed '{}' starting with '{}'", field, jsonString.charAt(0));
                 val = null;
             }
             bsons.put(field, val);
@@ -130,7 +138,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         return bsons;
     }
 
-    private Schema makeUpdatedSchema(Struct value, HashMap<String, BsonDocument> jsonParsedFields) {
+    private Schema makeUpdatedSchema(Struct value, HashMap<String, BsonValue> jsonParsedFields) {
         final Schema schema = value.schema();
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
         for (Field field : schema.fields()) {

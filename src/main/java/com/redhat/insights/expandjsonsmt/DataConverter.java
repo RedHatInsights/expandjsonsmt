@@ -18,14 +18,18 @@ class DataConverter {
      * Convert JSON to Struct value according to inserted schema.
      * @param bson Parsed bson object.
      * @param schema Schema used for conversion.
-     * @return Result Struct value.
+     * @return Result object value.
      */
-    static Struct jsonStr2Struct(BsonDocument bson, Schema schema) {
+    static Object jsonStr2Struct(BsonValue bson, Schema schema) {
+        final Object object;
         if (bson == null) {
             return null;
+        } else if (bson.isDocument()){
+            object = bsonDocument2Struct(bson.asDocument(), schema);
+        } else {
+            object = bsonArray2ArrayList(bson.asArray(), schema);
         }
-        final Struct struct = bsonDocument2Struct(bson, schema);
-        return struct;
+        return object;
     }
 
     private static void convertFieldValue(String field, BsonValue bsonValue, Struct struct, Schema schema) {

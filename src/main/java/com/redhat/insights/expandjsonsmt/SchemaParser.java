@@ -18,18 +18,15 @@ class SchemaParser {
      * @param bson Parsed document or null.
      * @param builder SchemaBuilder used to build schema.
      */
-    static void addJsonValueSchema(String field, BsonDocument bson, SchemaBuilder builder) {
-        addBsonDocumentFieldSchema(field, bson, builder);
-    }
-
-    private static void addBsonDocumentFieldSchema(String field, BsonDocument doc, SchemaBuilder builder) {
-        final SchemaBuilder fieldSchemaBuilder = SchemaBuilder.struct().name(builder.name() + "." + field).optional();
-        if (doc != null) {
-            for(Entry<String, BsonValue> entry : doc.entrySet()) {
-                addFieldSchema(entry, fieldSchemaBuilder);
-            }
+    static void addJsonValueSchema(String field, BsonValue bson, SchemaBuilder builder) {
+        final Schema fieldSchema;
+        if (bson == null) {
+            fieldSchema = SchemaBuilder.struct().name(builder.name() + "." + field).optional().build();
+        } else if (bson.isDocument()){
+            fieldSchema = bsonDocument2Schema(field, bson.asDocument(), builder);
+        } else {
+            fieldSchema = bsonArray2Schema(field, bson.asArray(), builder);
         }
-        final Schema fieldSchema = fieldSchemaBuilder.build();
         builder.field(field, fieldSchema);
     }
 
@@ -89,20 +86,21 @@ class SchemaParser {
     }
 
     private static Schema bsonArray2Schema(String key, BsonArray bsonArr, SchemaBuilder builder) {
+        final Schema memberSchema;
         if (bsonArr.isEmpty()){
-            throw new ConnectException(String.format("Array '%s' type not specified", key));
-        }
-
-        BsonType valueType = bsonArr.get(0).getBsonType();
-        for (BsonValue element: bsonArr.asArray()) {
-            if (element.getBsonType() != valueType) {
-                throw new ConnectException("Field " + key + " of schema " + builder.name() + " is not a homogenous array.");
+            memberSchema = Schema.OPTIONAL_STRING_SCHEMA;
+        } else {
+            BsonType valueType = bsonArr.get(0).getBsonType();
+            for (BsonValue element: bsonArr.asArray()) {
+                if (element.getBsonType() != valueType) {
+                    throw new ConnectException("Field " + key + " of schema " + builder.name() + " is not a homogenous array.");
+                }
             }
-        }
 
-        Schema memberSchema = bsonValue2Schema(key + "." + "member", bsonArr.get(0), builder);
-        if (memberSchema == null) {
-            throw new ConnectException(String.format("Array '%s' has unrecognized member schema.", key));
+            memberSchema = bsonValue2Schema(key + "." + "member", bsonArr.get(0), builder);
+            if (memberSchema == null) {
+                throw new ConnectException(String.format("Array '%s' has unrecognized member schema.", key));
+            }
         }
 
         Schema arrSchema = SchemaBuilder.array(memberSchema).name(builder.name() + "." + key).optional().build();

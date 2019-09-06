@@ -203,4 +203,30 @@ public class ExpandJSONTest {
         assertEquals("USA", updatedValue.getStruct("location").getString("country"));
         assertNull(updatedValue.get("metadata"));
     }
+
+    @Test
+    public void arrayInRoot() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceFields", "arr1,arr2,arr3");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct()
+                .field("arr1", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("arr2", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("arr3", Schema.OPTIONAL_STRING_SCHEMA).build();
+        final Struct value = new Struct(schema);
+        value.put("arr1","[1,2,3,4]");
+        value.put("arr2", "[]");
+        value.put("arr3", null);
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        assertEquals(3, updatedValue.schema().fields().size());
+        assertEquals(4, updatedValue.getStruct("arr1").getArray("array").size());
+        assertEquals(0, updatedValue.getStruct("arr2").getArray("array").size());
+        assertNull(updatedValue.getStruct("arr3"));
+    }
 }
