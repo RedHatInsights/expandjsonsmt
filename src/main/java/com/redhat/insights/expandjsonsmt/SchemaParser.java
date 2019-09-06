@@ -19,15 +19,22 @@ class SchemaParser {
      * @param builder SchemaBuilder used to build schema.
      */
     static void addJsonValueSchema(String field, String jsonString, SchemaBuilder builder) {
-        final BsonDocument rawDoc = BsonDocument.parse(jsonString);
-        final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
+        final BsonDocument doc;
+        if (jsonString == null) {
+            doc = null;
+        } else {
+            final BsonDocument rawDoc = BsonDocument.parse(jsonString);
+            doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
+        }
         addBsonDocumentFieldSchema(field, doc, builder);
     }
 
     private static void addBsonDocumentFieldSchema(String field, BsonDocument doc, SchemaBuilder builder) {
         final SchemaBuilder fieldSchemaBuilder = SchemaBuilder.struct().name(builder.name() + "." + field).optional();
-        for(Entry<String, BsonValue> entry : doc.entrySet()) {
-            addFieldSchema(entry, fieldSchemaBuilder);
+        if (doc != null) {
+            for(Entry<String, BsonValue> entry : doc.entrySet()) {
+                addFieldSchema(entry, fieldSchemaBuilder);
+            }
         }
         final Schema fieldSchema = fieldSchemaBuilder.build();
         builder.field(field, fieldSchema);

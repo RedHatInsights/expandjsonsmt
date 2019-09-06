@@ -202,4 +202,32 @@ public class ExpandJSONTest {
         assertEquals(1, updatedValue.schema().fields().size());
         assertEquals(4, updatedValue.getStruct("obj").getArray("ar1").size());
     }
+
+    @Test
+    public void nullValue() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceFields", "location,metadata");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct()
+                .field("age", Schema.INT32_SCHEMA)
+                .field("location", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("metadata", Schema.OPTIONAL_STRING_SCHEMA)
+                .build();
+
+        final Struct value = new Struct(schema);
+        value.put("age", 42);
+        value.put("location", "{\"country\":\"USA\"}");
+        value.put("metadata", null);
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        assertEquals(3, updatedValue.schema().fields().size());
+        assertEquals(new Integer(42), updatedValue.getInt32("age"));
+        assertEquals("USA", updatedValue.getStruct("location").getString("country"));
+        assertNull(updatedValue.get("metadata"));
+    }
 }

@@ -21,6 +21,9 @@ class DataConverter {
      * @return Result Struct value.
      */
     static Struct jsonStr2Struct(String jsonStr, Schema schema) {
+        if (jsonStr == null) {
+            return null;
+        }
         final BsonDocument rawDoc = BsonDocument.parse(jsonStr);
         final BsonDocument doc = Utils.replaceUnsupportedKeyCharacters(rawDoc);
         final Struct struct = bsonDocument2Struct(doc, schema);
