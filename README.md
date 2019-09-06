@@ -8,10 +8,11 @@ Use it in connector config file like this:
 ...
 "transforms": "expand",
 "transforms.expand.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
-"transforms.expand.sourceFields": "metadata",
-"transforms.expand.outputFields": "metadata_obj"
+"transforms.expand.sourceFields": "metadata"
 ...
 ~~~
+
+Use dot notation for deeper fields (e. g. `level1.level2`).
 
 ## Install to Kafka Connect
 After build copy file `target/kafka-connect-smt-expandjsonsmt-0.0.1-jar-with-dependencies.jar`

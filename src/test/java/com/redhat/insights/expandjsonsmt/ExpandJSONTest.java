@@ -128,35 +128,6 @@ public class ExpandJSONTest {
     }
 
     @Test
-    public void outputField() {
-        final Map<String, String> props = new HashMap<>();
-        props.put("sourceFields", "address");
-        props.put("outputFields", "addressObj");
-
-        xform.configure(props);
-
-        final Schema schema = SchemaBuilder.struct()
-                .field("name", Schema.STRING_SCHEMA)
-                .field("address", Schema.STRING_SCHEMA)
-                .build();
-
-        final Struct value = new Struct(schema);
-        value.put("name", "Josef");
-        String jsonStr = "{\"city\":\"Studenec\",\"code\":123}";
-        value.put("address", jsonStr);
-
-        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
-        final SinkRecord transformedRecord = xform.apply(record);
-
-        final Struct updatedValue = (Struct) transformedRecord.value();
-        assertEquals(3, updatedValue.schema().fields().size());
-        assertEquals("Josef", updatedValue.getString("name"));
-        assertEquals(jsonStr, updatedValue.getString("address"));
-        assertEquals("Studenec", updatedValue.getStruct("addressObj").getString("city"));
-        assertEquals(new Integer(123), updatedValue.getStruct("addressObj").getInt32("code"));
-    }
-
-    @Test
     public void arrayCase() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceFields", "obj");
@@ -254,5 +225,32 @@ public class ExpandJSONTest {
         assertEquals(0, updatedValue.getStruct("arr").getArray("array").size());
         assertEquals("{malf",updatedValue.getStruct("obj2").getString("value"));
         assertTrue(updatedValue.getStruct("obj2").getString("error").startsWith("JSON reader"));
+    }
+
+    @Test
+    public void deepField() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceFields", "obj1.obj2.obj3");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct()
+                .field("obj1", SchemaBuilder.struct()
+                        .field("obj2", SchemaBuilder.struct()
+                                .field("obj3", Schema.OPTIONAL_STRING_SCHEMA))).build();
+        final Struct obj2 = new Struct(schema.field("obj1").schema().field("obj2").schema());
+        obj2.put("obj3", "{\"country\": \"USA\"}");
+        final Struct obj1 = new Struct(schema.field("obj1").schema());
+        obj1.put("obj2", obj2);
+        final Struct struct = new Struct(schema);
+        struct.put("obj1", obj1);
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, struct, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        assertEquals(1, updatedValue.schema().fields().size());
+        assertEquals("USA", updatedValue.getStruct("obj1").getStruct("obj2").getStruct("obj3")
+                .getString("country"));
     }
 }

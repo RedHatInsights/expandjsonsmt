@@ -21,6 +21,7 @@ class SchemaParser {
     static void addJsonValueSchema(String field, BsonDocument bson, SchemaBuilder builder) {
         final Schema fieldSchema;
         if (bson == null) {
+            // TODO try remove naming.
             fieldSchema = SchemaBuilder.struct().name(builder.name() + "." + field).optional().build();
         } else {
             fieldSchema = bsonDocument2Schema(field, bson.asDocument(), builder);
