@@ -14,12 +14,12 @@ Use it in connector config file like this:
 ~~~
 
 ## Install to Kafka Connect
-After build copy file `target/kafka-connect-smt-expandjsonsmt-1.0-SNAPSHOT-jar-with-dependencies.jar`
+After build copy file `target/kafka-connect-smt-expandjsonsmt-0.0.1-jar-with-dependencies.jar`
 to Kafka Connect container `` copying to its docker image or so.
 
 It can be done adding this line to Dockerfile:
 ~~~Dockerfile
-COPY ./kafka-connect-smt-expandjsonsmt-1.0-SNAPSHOT-jar-with-dependencies.jar $KAFKA_CONNECT_PLUGINS_DIR
+COPY ./kafka-connect-smt-expandjsonsmt-0.0.1-jar-with-dependencies.jar $KAFKA_CONNECT_PLUGINS_DIR
 ~~~
 
 ## Example
