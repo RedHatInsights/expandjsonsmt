@@ -29,7 +29,6 @@ import org.apache.kafka.connect.transforms.util.SchemaUtil;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
-import org.bson.BsonValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +68,8 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         outputFields = config.getList(ConfigName.OUTPUT_FIELDS);
         if (outputFields.isEmpty()) {
             outputFields = sourceFields;
+        } else if (outputFields.size() != sourceFields.size()) {
+            throw new Error("Input and output fields lists have different size!");
         }
     }
 
@@ -84,42 +85,24 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
 
     private R applyWithSchema(R record) {
         final Struct value = requireStruct(operatingValue(record), PURPOSE);
+        final HashMap<String, BsonDocument> jsonParsedFields = parseJsonFields(value, sourceFields);
 
-        try {
-            final HashMap<String, BsonValue> jsonParsedFields = parseJsonFields(value, sourceFields);
+        final Schema updatedSchema = makeUpdatedSchema(value, jsonParsedFields);
+        final Struct updatedValue = makeUpdatedValue(value, updatedSchema, jsonParsedFields);
 
-            // update schema using JSON template from config
-            final Schema updatedSchema = makeUpdatedSchema(value, jsonParsedFields);
-
-            // copy all fields and extract configured text field to JSON object
-            final Struct updatedValue = new Struct(updatedSchema);
-            for (Field field : value.schema().fields()) {
-                if (sourceFields.contains(field.name())) {
-                    String outputField = outputFields.get(sourceFields.indexOf(field.name()));
-                    final BsonValue parsedValue = jsonParsedFields.get(field.name());
-                    final Object fieldValue = DataConverter.jsonStr2Struct(parsedValue,
-                            updatedSchema.field(outputField).schema());
-                    updatedValue.put(outputField, fieldValue);
-                    if (outputField.equals(field.name())) {
-                        // do not copy original value, if the input field equals output one
-                        continue;
-                    }
-                }
-
-                final Object fieldValue = value.get(field.name());
-                updatedValue.put(field.name(), fieldValue);
-            }
-            return newRecord(record, updatedSchema, updatedValue);
-        } catch (Exception ex) {
-            LOGGER.error(ex.getMessage(), ex);
-            return record;
-        }
+        return newRecord(record, updatedSchema, updatedValue);
     }
 
-    private static HashMap<String, BsonValue> parseJsonFields(Struct value, List<String> sourceFields) {
-        final HashMap<String, BsonValue> bsons = new HashMap<>(sourceFields.size());
+    /**
+     * Parse JSON objects from given string fields.
+     * @param value Input record to read original string fields.
+     * @param sourceFields List of fields to parse JSON objects from.
+     * @return Collection of parsed JSON objects with field names.
+     */
+    private static HashMap<String, BsonDocument> parseJsonFields(Struct value, List<String> sourceFields) {
+        final HashMap<String, BsonDocument> bsons = new HashMap<>(sourceFields.size());
         for(String field : sourceFields){
-            BsonValue val;
+            BsonDocument val;
             final String jsonString = value.getString(field);
             if (jsonString == null) {
                 val = null;
@@ -129,19 +112,17 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
                         val = BsonDocument.parse(jsonString);
                     } else if (jsonString.startsWith("[")) {
                         final BsonArray bsonArray = BsonArray.parse(jsonString);
-                        final BsonDocument doc = new BsonDocument();
-                        doc.put("array", bsonArray);
-                        val = doc;
+                        val = new BsonDocument();
+                        val.put("array", bsonArray);
                     } else {
                         String msg = String.format("Unable to parse filed '%s' starting with '%s'", field, jsonString.charAt(0));
                         throw new Exception(msg);
                     }
                 } catch (Exception ex) {
                     LOGGER.warn(ex.getMessage(), ex);
-                    final BsonDocument doc = new BsonDocument();
-                    doc.put("value", new BsonString(jsonString));
-                    doc.put("error", new BsonString(ex.getMessage()));
-                    val = doc;
+                    val = new BsonDocument();
+                    val.put("value", new BsonString(jsonString));
+                    val.put("error", new BsonString(ex.getMessage()));
                 }
             }
             bsons.put(field, val);
@@ -149,7 +130,42 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
         return bsons;
     }
 
-    private Schema makeUpdatedSchema(Struct value, HashMap<String, BsonValue> jsonParsedFields) {
+    /**
+     * Copy original fields value or take parsed JSONS from collection.
+     * @param value Input value to copy fields from.
+     * @param updatedSchema Schema for new output record.
+     * @param jsonParsedFields Parsed JSON objects.
+     * @return Output record with parsed JSON values.
+     */
+    private Struct makeUpdatedValue(Struct value, Schema updatedSchema, HashMap<String, BsonDocument> jsonParsedFields) {
+        // copy all fields and extract configured text field to JSON object
+        final Struct updatedValue = new Struct(updatedSchema);
+        for (Field field : value.schema().fields()) {
+            if (sourceFields.contains(field.name())) {
+                String outputField = outputFields.get(sourceFields.indexOf(field.name()));
+                final BsonDocument parsedValue = jsonParsedFields.get(field.name());
+                final Object fieldValue = DataConverter.jsonStr2Struct(parsedValue,
+                        updatedSchema.field(outputField).schema());
+                updatedValue.put(outputField, fieldValue);
+                if (outputField.equals(field.name())) {
+                    // do not copy original value, if the input field equals output one
+                    continue;
+                }
+            }
+
+            final Object fieldValue = value.get(field.name());
+            updatedValue.put(field.name(), fieldValue);
+        }
+        return updatedValue;
+    }
+
+    /**
+     * Update schema using JSON template from config.
+     * @param value Input value to take basic schema from.
+     * @param jsonParsedFields Values of parsed json string fields.
+     * @return New schema for output record.
+     */
+    private Schema makeUpdatedSchema(Struct value, HashMap<String, BsonDocument> jsonParsedFields) {
         final Schema schema = value.schema();
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
         for (Field field : schema.fields()) {

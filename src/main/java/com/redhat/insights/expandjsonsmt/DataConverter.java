@@ -20,16 +20,14 @@ class DataConverter {
      * @param schema Schema used for conversion.
      * @return Result object value.
      */
-    static Object jsonStr2Struct(BsonValue bson, Schema schema) {
-        final Object object;
+    static Struct jsonStr2Struct(BsonDocument bson, Schema schema) {
+        final Struct struct;
         if (bson == null) {
             return null;
-        } else if (bson.isDocument()){
-            object = bsonDocument2Struct(bson.asDocument(), schema);
         } else {
-            object = bsonArray2ArrayList(bson.asArray(), schema);
+            struct = bsonDocument2Struct(bson.asDocument(), schema);
         }
-        return object;
+        return struct;
     }
 
     private static void convertFieldValue(String field, BsonValue bsonValue, Struct struct, Schema schema) {
