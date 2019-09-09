@@ -13,32 +13,31 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 class SchemaParser {
 
     /**
-     * Add Struct schema according to JSON string.
-     * @param field Output field to store JSON object.
-     * @param bson Parsed document or null.
-     * @param builder SchemaBuilder used to build schema.
+     * Get Struct schema according to input document.
+     * @param doc Parsed document or null.
      */
-    static void addJsonValueSchema(String field, BsonDocument bson, SchemaBuilder builder) {
-        final Schema fieldSchema;
-        if (bson == null) {
-            // TODO try remove naming.
-            fieldSchema = SchemaBuilder.struct().name(builder.name() + "." + field).optional().build();
-        } else {
-            fieldSchema = bsonDocument2Schema(field, bson.asDocument(), builder);
+    static Schema bsonDocument2Schema(BsonDocument doc) {
+        final SchemaBuilder schemaBuilder = SchemaBuilder.struct().optional();
+        if (doc != null) {
+            for(Entry<String, BsonValue> entry : doc.entrySet()) {
+                addFieldSchema(entry, schemaBuilder);
+            }
         }
-        builder.field(field, fieldSchema);
+        final Schema fieldSchema = schemaBuilder.build();
+        return fieldSchema;
     }
+
 
     private static void addFieldSchema(Entry<String, BsonValue> keyValuesforSchema, SchemaBuilder builder) {
         final String key = keyValuesforSchema.getKey();
         final BsonValue bsonValue = keyValuesforSchema.getValue();
-        final Schema schema = bsonValue2Schema(key, bsonValue, builder);
+        final Schema schema = bsonValue2Schema(bsonValue);
         if (schema != null) {
             builder.field(key, schema);
         }
     }
 
-    private static Schema bsonValue2Schema(String key, BsonValue bsonValue, SchemaBuilder builder) {
+    private static Schema bsonValue2Schema(BsonValue bsonValue) {
         switch (bsonValue.getBsonType()) {
         case NULL:
         case STRING:
@@ -65,26 +64,17 @@ class SchemaParser {
             return Schema.OPTIONAL_BOOLEAN_SCHEMA;
 
         case DOCUMENT:
-            return bsonDocument2Schema(key, bsonValue.asDocument(), builder);
+            return bsonDocument2Schema(bsonValue.asDocument());
 
         case ARRAY:
-            return bsonArray2Schema(key, bsonValue.asArray(), builder);
+            return bsonArray2Schema(bsonValue.asArray());
 
         default:
             return null;
         }
     }
 
-    private static Schema bsonDocument2Schema(String key, BsonDocument doc, SchemaBuilder builder) {
-        final SchemaBuilder fieldSchemaBuilder = SchemaBuilder.struct().name(builder.name() + "." + key).optional();
-        for(Entry<String, BsonValue> entry : doc.entrySet()) {
-            addFieldSchema(entry, fieldSchemaBuilder);
-        }
-        final Schema fieldSchema = fieldSchemaBuilder.build();
-        return fieldSchema;
-    }
-
-    private static Schema bsonArray2Schema(String key, BsonArray bsonArr, SchemaBuilder builder) {
+    private static Schema bsonArray2Schema(BsonArray bsonArr) {
         final Schema memberSchema;
         if (bsonArr.isEmpty()){
             memberSchema = Schema.OPTIONAL_STRING_SCHEMA;
@@ -92,17 +82,18 @@ class SchemaParser {
             BsonType valueType = bsonArr.get(0).getBsonType();
             for (BsonValue element: bsonArr.asArray()) {
                 if (element.getBsonType() != valueType) {
-                    throw new ConnectException("Field " + key + " of schema " + builder.name() + " is not a homogenous array.");
+                    throw new ConnectException(String.format("Field is not a homogenous array (%s x %s).",
+                            valueType.toString(), element.getBsonType().toString()));
                 }
             }
 
-            memberSchema = bsonValue2Schema(key + "." + "member", bsonArr.get(0), builder);
+            memberSchema = bsonValue2Schema(bsonArr.get(0));
             if (memberSchema == null) {
-                throw new ConnectException(String.format("Array '%s' has unrecognized member schema.", key));
+                throw new ConnectException("Array has unrecognized member schema.");
             }
         }
 
-        Schema arrSchema = SchemaBuilder.array(memberSchema).name(builder.name() + "." + key).optional().build();
+        Schema arrSchema = SchemaBuilder.array(memberSchema).optional().build();
         return arrSchema;
     }
 }

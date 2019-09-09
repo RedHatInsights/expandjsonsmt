@@ -181,15 +181,13 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
             final Schema fieldSchema;
             final String absoluteKey = joinKeys(parentKey, field.name());
             if (jsonParsedFields.containsKey(absoluteKey)) {
-                // TODO - simplify to BsonDocument 2 Struct conversion...
-                SchemaParser.addJsonValueSchema(field.name(), jsonParsedFields.get(absoluteKey), builder);
+                fieldSchema = SchemaParser.bsonDocument2Schema(jsonParsedFields.get(absoluteKey));
             } else if (field.schema().type().equals(Schema.Type.STRUCT)) {
                 fieldSchema = makeUpdatedSchema(absoluteKey, value.getStruct(field.name()), jsonParsedFields);
-                builder.field(field.name(), fieldSchema); // todo: one place
             } else {
                 fieldSchema = field.schema();
-                builder.field(field.name(), fieldSchema);
             }
+            builder.field(field.name(), fieldSchema);
         }
         return builder.build();
     }

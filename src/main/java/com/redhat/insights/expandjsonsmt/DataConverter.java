@@ -18,7 +18,7 @@ class DataConverter {
      * Convert JSON to Struct value according to inserted schema.
      * @param bson Parsed bson object.
      * @param schema Schema used for conversion.
-     * @return Result object value.
+     * @return Result struct value.
      */
     static Struct jsonStr2Struct(BsonDocument bson, Schema schema) {
         final Struct struct;
