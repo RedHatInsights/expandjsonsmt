@@ -24,6 +24,7 @@ import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.errors.DataException;
 
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
@@ -76,13 +77,20 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
     }
 
     private R applyWithSchema(R record) {
-        final Struct value = requireStruct(operatingValue(record), PURPOSE);
-        final HashMap<String, BsonDocument> jsonParsedFields = parseJsonFields(value, sourceFields, delimiterSplit);
+        try {
+            final Struct value = requireStruct(operatingValue(record), PURPOSE);
+            final HashMap<String, BsonDocument> jsonParsedFields = parseJsonFields(value, sourceFields, delimiterSplit);
 
-        final Schema updatedSchema = makeUpdatedSchema(null, value, jsonParsedFields);
-        final Struct updatedValue = makeUpdatedValue(null, value, updatedSchema, jsonParsedFields);
+            final Schema updatedSchema = makeUpdatedSchema(null, value, jsonParsedFields);
+            final Struct updatedValue = makeUpdatedValue(null, value, updatedSchema, jsonParsedFields);
 
-        return newRecord(record, updatedSchema, updatedValue);
+            return newRecord(record, updatedSchema, updatedValue);
+        } catch (DataException e) {
+            LOGGER.warn("ExpandJSON fields missing from record.");
+            LOGGER.warn(record.toString());
+            LOGGER.warn(e.toString());
+            return record;
+        }
     }
 
     private static String getStringValue(List<String> path, Struct value) {
