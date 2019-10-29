@@ -15,18 +15,18 @@ Use it in connector config file like this:
 Use dot notation for deeper fields (e. g. `level1.level2`).
 
 ## Install to Kafka Connect
-After build copy file `target/kafka-connect-smt-expandjsonsmt-0.0.2-assemble-all.jar`
+After build copy file `target/kafka-connect-smt-expandjsonsmt-0.0.3-assemble-all.jar`
 to Kafka Connect container `` copying to its docker image or so.
 
 It can be done adding this line to Dockerfile:
 ~~~Dockerfile
-COPY ./target/kafka-connect-smt-expandjsonsmt-0.0.2-assemble-all.jar $KAFKA_CONNECT_PLUGINS_DIR
+COPY ./target/kafka-connect-smt-expandjsonsmt-0.0.3-assemble-all.jar $KAFKA_CONNECT_PLUGINS_DIR
 ~~~
 
 Or download current release:
 ~~~Dockerfile
 RUN curl -fSL -o /tmp/plugin.tar.gz \
-    https://github.com/RedHatInsights/expandjsonsmt/releases/download/0.0.2/kafka-connect-smt-expandjsonsmt-0.0.2.tar.gz && \
+    https://github.com/RedHatInsights/expandjsonsmt/releases/download/0.0.3/kafka-connect-smt-expandjsonsmt-0.0.3.tar.gz && \
     tar -xzf /tmp/plugin.tar.gz -C $KAFKA_CONNECT_PLUGINS_DIR && \
     rm -f /tmp/plugin.tar.gz;
 ~~~
