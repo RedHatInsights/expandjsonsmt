@@ -201,6 +201,26 @@ public class ExpandJSONTest {
     }
 
     @Test
+    public void arrayNullMember() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceFields", "arr");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct()
+                .field("arr", Schema.OPTIONAL_STRING_SCHEMA).build();
+        final Struct value = new Struct(schema);
+        value.put("arr","[null, 3, 5]");
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        final String expected = "Struct{arr=Struct{array=[null, 3, 5]}}";
+        assertEquals(expected, updatedValue.toString());
+    }
+
+    @Test
     public void malformated() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceFields", "obj1,obj2,arr");
