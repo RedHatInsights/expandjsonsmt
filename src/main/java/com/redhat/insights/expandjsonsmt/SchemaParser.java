@@ -74,20 +74,37 @@ class SchemaParser {
         }
     }
 
+    /**
+     * Get first not-null member value of the array.
+     * Check the same schema of all array members.
+     */
+    private static BsonValue getArrayElement(BsonArray bsonArray) {
+        BsonValue bsonValue = new BsonNull();
+        // Get first not-null element type
+        for (BsonValue element : bsonArray.asArray()) {
+           if (element.getBsonType() != BsonType.NULL) {
+               bsonValue = element;
+               break;
+           }
+        }
+
+        // validate all members type
+        for (BsonValue element: bsonArray.asArray()) {
+            if (element.getBsonType() != bsonValue.getBsonType() && element.getBsonType() != BsonType.NULL) {
+                throw new ConnectException(String.format("Field is not a homogenous array (%s x %s).",
+                        bsonValue.toString(), element.getBsonType().toString()));
+            }
+        }
+        return bsonValue;
+    }
+
     private static Schema bsonArray2Schema(BsonArray bsonArr) {
         final Schema memberSchema;
         if (bsonArr.isEmpty()){
             memberSchema = Schema.OPTIONAL_STRING_SCHEMA;
         } else {
-            BsonType valueType = bsonArr.get(0).getBsonType();
-            for (BsonValue element: bsonArr.asArray()) {
-                if (element.getBsonType() != valueType) {
-                    throw new ConnectException(String.format("Field is not a homogenous array (%s x %s).",
-                            valueType.toString(), element.getBsonType().toString()));
-                }
-            }
-
-            memberSchema = bsonValue2Schema(bsonArr.get(0));
+            final BsonValue elementSample = getArrayElement(bsonArr);
+            memberSchema = bsonValue2Schema(elementSample);
             if (memberSchema == null) {
                 throw new ConnectException("Array has unrecognized member schema.");
             }
