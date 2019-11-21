@@ -7,10 +7,15 @@ import org.bson.*;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Kafka Connect parsing schema methods.
  */
 class SchemaParser {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SchemaParser.class);
 
     /**
      * Get Struct schema according to input document.
@@ -29,11 +34,15 @@ class SchemaParser {
 
 
     private static void addFieldSchema(Entry<String, BsonValue> keyValuesforSchema, SchemaBuilder builder) {
-        final String key = keyValuesforSchema.getKey();
-        final BsonValue bsonValue = keyValuesforSchema.getValue();
-        final Schema schema = bsonValue2Schema(bsonValue);
-        if (schema != null) {
-            builder.field(key, schema);
+        try {
+            final String key = keyValuesforSchema.getKey();
+            final BsonValue bsonValue = keyValuesforSchema.getValue();
+            final Schema schema = bsonValue2Schema(bsonValue);
+            if (schema != null) {
+                builder.field(key, schema);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Couldn't process json field: " + keyValuesforSchema.toString(), e);
         }
     }
 
