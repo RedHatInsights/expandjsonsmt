@@ -86,9 +86,7 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
 
             return newRecord(record, updatedSchema, updatedValue);
         } catch (DataException e) {
-            LOGGER.warn("ExpandJSON fields missing from record.");
-            LOGGER.warn(record.toString());
-            LOGGER.warn(e.toString());
+            LOGGER.warn("ExpandJSON fields missing from record: " + record.toString(), e);
             return record;
         }
     }
