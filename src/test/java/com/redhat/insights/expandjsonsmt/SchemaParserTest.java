@@ -55,4 +55,12 @@ public class SchemaParserTest {
         assertEquals(Schema.OPTIONAL_INT32_SCHEMA, schema.field("arr").schema()
                 .valueSchema().field("a").schema());
     }
+
+    @Test
+    public void withEmptyKey() {
+        BsonDocument bson = BsonDocument.parse("{\"\": \"empty key\", \"not-empty\": \"not-empty\"}");
+        Schema schema = SchemaParser.bsonDocument2Schema(bson);
+        assertEquals(1, schema.fields().size());
+        assertEquals(Schema.OPTIONAL_STRING_SCHEMA, schema.field("not-empty").schema());
+    }
 }
