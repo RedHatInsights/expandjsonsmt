@@ -25,4 +25,4 @@ RUN mkdir $KAFKA_CONNECT_ES_DIR && cd $KAFKA_CONNECT_ES_DIR &&\
         curl -sO http://central.maven.org/maven2/io/searchbox/jest-common/2.0.0/jest-common-2.0.0.jar && \
         curl -sO http://central.maven.org/maven2/com/google/code/gson/gson/2.4/gson-2.4.jar
 
-COPY ./target/kafka-connect-smt-expandjsonsmt-0.0.4-assemble-all.jar $KAFKA_CONNECT_PLUGINS_DIR
+COPY ./target/kafka-connect-smt-expandjsonsmt-0.0.5-assemble-all.jar $KAFKA_CONNECT_PLUGINS_DIR
