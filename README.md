@@ -48,3 +48,9 @@ cd dev
 # ... stop containers
 docker-compose down
 ~~~
+
+## Build release file
+- Remove `target` directory if it exists.
+- Increment version in `pom.xml` (e.g. to `0.0.3`).
+- Run build script: `./scripts/build_release.sh 0.0.3`.
+- Take `*.tar.gz` file from `target` folder and publish it.
