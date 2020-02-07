@@ -147,6 +147,25 @@ public class ExpandJSONTest {
     }
 
     @Test
+    public void testEmptyArray() {
+        final Map<String, String> props = new HashMap<>();
+        props.put("sourceFields", "obj");
+
+        xform.configure(props);
+
+        final Schema schema = SchemaBuilder.struct().field("obj", Schema.STRING_SCHEMA).build();
+        final Struct value = new Struct(schema);
+        value.put("obj","{\"null\": {\"uIczQ\": []}}");
+
+        final SinkRecord record = new SinkRecord("test", 0, null, null, schema, value, 0);
+        final SinkRecord transformedRecord = xform.apply(record);
+
+        final Struct updatedValue = (Struct) transformedRecord.value();
+        assertNotNull(updatedValue.getStruct("obj").getStruct("null"));
+        assertEquals(0, updatedValue.getStruct("obj").getStruct("null").getArray("uIczQ").size());
+    }
+
+    @Test
     public void nullValue() {
         final Map<String, String> props = new HashMap<>();
         props.put("sourceFields", "location,metadata");
