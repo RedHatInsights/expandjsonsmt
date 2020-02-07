@@ -22,14 +22,18 @@ class SchemaParser {
      * @param doc Parsed document or null.
      */
     static Schema bsonDocument2Schema(BsonDocument doc) {
+        return bsonDocument2SchemaBuilder(doc).build();
+    }
+
+    private static SchemaBuilder bsonDocument2SchemaBuilder(BsonDocument doc) {
         final SchemaBuilder schemaBuilder = SchemaBuilder.struct().optional();
         if (doc != null) {
             for(Entry<String, BsonValue> entry : doc.entrySet()) {
                 addFieldSchema(entry, schemaBuilder);
             }
         }
-        final Schema fieldSchema = schemaBuilder.build();
-        return fieldSchema;
+
+        return schemaBuilder;
     }
 
 
@@ -76,7 +80,7 @@ class SchemaParser {
             return bsonDocument2Schema(bsonValue.asDocument());
 
         case ARRAY:
-            return bsonArray2Schema(bsonValue.asArray());
+            return SchemaBuilder.array(getArrayMemberSchema(bsonValue.asArray())).optional().build();
 
         default:
             return null;
@@ -107,19 +111,48 @@ class SchemaParser {
         return bsonValue;
     }
 
-    private static Schema bsonArray2Schema(BsonArray bsonArr) {
-        final Schema memberSchema;
+    private static Schema getArrayMemberSchema(BsonArray bsonArr) {
         if (bsonArr.isEmpty()){
-            memberSchema = Schema.OPTIONAL_STRING_SCHEMA;
-        } else {
-            final BsonValue elementSample = getArrayElement(bsonArr);
-            memberSchema = bsonValue2Schema(elementSample);
-            if (memberSchema == null) {
-                throw new ConnectException("Array has unrecognized member schema.");
+            return Schema.OPTIONAL_STRING_SCHEMA;
+        }
+
+        final BsonValue elementSample = getArrayElement(bsonArr);
+        if (elementSample.isDocument()) {
+            return buildDocumentUnionSchema(bsonArr);
+        }
+
+        final Schema schema = bsonValue2Schema(elementSample);
+        if (schema == null) {
+            throw new ConnectException("Array has unrecognized member schema.");
+        }
+
+        return schema;
+    }
+
+    /*
+     * if the array contains a heterogeneous set of documents create a member schema that's an union
+     * of the document types
+     */
+    private static Schema buildDocumentUnionSchema(BsonArray array) {
+        SchemaBuilder builder = null;
+
+        for (BsonValue element : array.asArray()) {
+            if (!element.isDocument()) {
+                continue;
+            }
+
+            if (builder == null) {
+                builder = bsonDocument2SchemaBuilder(element.asDocument());
+                continue;
+            }
+
+            for(Entry<String, BsonValue> entry : element.asDocument().entrySet()) {
+                if (builder.field(entry.getKey()) == null) {
+                    addFieldSchema(entry, builder);
+                }
             }
         }
 
-        Schema arrSchema = SchemaBuilder.array(memberSchema).optional().build();
-        return arrSchema;
+        return builder.build();
     }
 }
