@@ -78,7 +78,14 @@ abstract class ExpandJSON<R extends ConnectRecord<R>> implements Transformation<
 
     private R applyWithSchema(R record) {
         try {
-            final Struct value = requireStruct(operatingValue(record), PURPOSE);
+            Object recordValue = operatingValue(record);
+            if (recordValue == null) {
+                LOGGER.info("Expandjson record is null");
+                LOGGER.info(record.toString());
+                return record;
+            }
+
+            final Struct value = requireStruct(recordValue, PURPOSE);
             final HashMap<String, BsonDocument> jsonParsedFields = parseJsonFields(value, sourceFields, delimiterSplit);
 
             final Schema updatedSchema = makeUpdatedSchema(null, value, jsonParsedFields);
