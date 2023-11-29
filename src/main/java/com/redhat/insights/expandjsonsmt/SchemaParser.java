@@ -93,16 +93,28 @@ class SchemaParser {
      */
     private static BsonValue getArrayElement(BsonArray bsonArray) {
         BsonValue bsonValue = new BsonNull();
-        // Get first not-null element type
-        for (BsonValue element : bsonArray.asArray()) {
-           if (element.getBsonType() != BsonType.NULL) {
-               bsonValue = element;
-               break;
-           }
+        BsonArray newArray = new BsonArray();
+        boolean hasInt64 = false;
+
+        for (BsonValue element : bsonArray) {
+            if (element.getBsonType() != BsonType.NULL) {
+                if (bsonValue.getBsonType() == BsonType.NULL) {
+                    bsonValue = element;
+                }
+                if (element.getBsonType() == BsonType.INT64) {
+                    hasInt64 = true;
+                }
+                long value = element.isNumber() ? element.asNumber().longValue() : 0;
+                newArray.add(new BsonInt64(value));
+            }
         }
 
-        // validate all members type
-        for (BsonValue element: bsonArray.asArray()) {
+        if (hasInt64) {
+            bsonArray = newArray;
+            bsonValue = new BsonInt64(0);
+        }
+
+        for (BsonValue element: bsonArray) {
             if (element.getBsonType() != bsonValue.getBsonType() && element.getBsonType() != BsonType.NULL) {
                 throw new ConnectException(String.format("Field is not a homogenous array (%s x %s).",
                         bsonValue.toString(), element.getBsonType().toString()));
@@ -119,6 +131,13 @@ class SchemaParser {
         final BsonValue elementSample = getArrayElement(bsonArr);
         if (elementSample.isDocument()) {
             return buildDocumentUnionSchema(bsonArr);
+        }
+
+        // Check if the array contains any BsonType.INT64 elements
+        for (BsonValue element : bsonArr) {
+            if (element.getBsonType() == BsonType.INT64) {
+                return Schema.OPTIONAL_INT64_SCHEMA;
+            }
         }
 
         final Schema schema = bsonValue2Schema(elementSample);
