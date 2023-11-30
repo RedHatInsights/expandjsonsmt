@@ -3,9 +3,7 @@ package com.redhat.insights.expandjsonsmt;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
-import org.bson.BsonArray;
-import org.bson.BsonDocument;
-import org.bson.BsonValue;
+import org.bson.*;
 
 import java.util.ArrayList;
 
@@ -92,10 +90,30 @@ class DataConverter {
     }
 
     private static ArrayList<Object> bsonArray2ArrayList(BsonArray bsonArr, Schema schema) {
-        final ArrayList<Object> arr = new ArrayList<>(bsonArr.size());
-        for(BsonValue bsonValue : bsonArr.getValues()) {
-            arr.add(bsonValue2Object(bsonValue, schema.valueSchema()));
+        boolean hasInt64 = false;
+
+        // Check if the array contains any BsonType.INT64 elements
+        for (BsonValue element : bsonArr) {
+            if (element.getBsonType() == BsonType.INT64) {
+                hasInt64 = true;
+                break;
+            }
         }
+
+        final ArrayList<Object> arr = new ArrayList<>(bsonArr.size());
+
+        // If array contains BsonType.INT64, convert all elements to BsonInt64
+        if (hasInt64) {
+            for (BsonValue element : bsonArr) {
+                long value = element.isNumber() ? element.asNumber().longValue() : 0;
+                arr.add(new BsonInt64(value).longValue());
+            }
+        } else {
+            for (BsonValue bsonValue : bsonArr.getValues()) {
+                arr.add(bsonValue2Object(bsonValue, schema.valueSchema()));
+            }
+        }
+
         return arr;
     }
 }

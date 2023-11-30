@@ -50,6 +50,10 @@ public class ExpandArrayTest {
             {
                 "{\"data\": [{\"foo\": \"A\"}, {\"foo\": \"B\"}, {\"foo\": \"C\"}]}",
                 "Struct{obj=Struct{data=[Struct{foo=A}, Struct{foo=B}, Struct{foo=C}]}}"
+            },
+            {
+                "{\"data\": [1, 2147639482, 2147639482, 2]}",
+                "Struct{obj=Struct{data=[1, 2147639482, 2147639482, 2]}}"
             }
         });
     }
